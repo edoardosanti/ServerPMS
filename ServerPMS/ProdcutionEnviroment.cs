@@ -5,7 +5,7 @@
 //
 using System;
 
-namespace IRSv2
+namespace ServerPMS
 {
     public class ProdcutionEnviroment
     {

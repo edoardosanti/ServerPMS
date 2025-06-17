@@ -1,6 +1,6 @@
-﻿using IRSv2;
+﻿using ServerPMS;
 
-namespace IRSv2Tests;
+namespace ServerPMSTests;
 
 [TestClass]
 public class RQueueTests

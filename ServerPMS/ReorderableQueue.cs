@@ -6,7 +6,7 @@
 
 using System.Collections;
 
-namespace IRSv2
+namespace ServerPMS
 {
     public class ReorderableQueue<T> : IEnumerable<T>, IEquatable<T>
     {

@@ -4,7 +4,7 @@
 //
 //
 using System;
-namespace IRSv2
+namespace ServerPMS
 {
     public struct SDT
     {

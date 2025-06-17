@@ -1,7 +1,7 @@
-﻿using IRSv2;
+﻿using ServerPMS;
 using Microsoft.VisualStudio.TestTools.UnitTesting.Logging;
 
-namespace IRSv2Tests;
+namespace ServerPMSTests;
 
 [TestClass]
 public class POrderTests

@@ -6,7 +6,7 @@
 using ClosedXML.Excel;
 
 
-namespace IRSv2
+namespace ServerPMS
 {
     public class ExcelOrderParserParams
     {

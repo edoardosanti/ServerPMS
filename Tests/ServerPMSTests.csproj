@@ -25,5 +25,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IRSv2\IRSv2.csproj" />
+    <ProjectReference Include="..\ServerPMS\ServerPMS.csproj" />
   </ItemGroup>
 </Project>

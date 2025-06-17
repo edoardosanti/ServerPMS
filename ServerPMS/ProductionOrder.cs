@@ -2,7 +2,7 @@
 // LSData - all rights reserved
 // ProductionOrder.cs
 
-namespace IRSv2
+namespace ServerPMS
 {
     public class ProductionOrder
     {
