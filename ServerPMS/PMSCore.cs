@@ -11,12 +11,15 @@ namespace ServerPMS
     {
 
         List<ProductionOrder> ProductionOrdersBuffer;
-        
+
+        public delegate string SettingsLoader(string filename);
+        public delegate string DBAccessor(string sqlCommand);
+
+
         public PMSCore()
         {
 
-            
-            string filename = string.Empty;
+            ProductionOrdersBuffer = new List<ProductionOrder>();
 
             //initializing production enviroment
             ProdcutionEnviroment PE = new ProdcutionEnviroment();
@@ -26,6 +29,8 @@ namespace ServerPMS
             PE.AddUnit(UnitType.CNCLathe, "Haas");
 
         }
+
+        private 
 
         public bool ImportOrdersFromExcelFile(string filename, ExcelOrderParserParams parserParams=null)
         {
@@ -53,7 +58,7 @@ namespace ServerPMS
 
             if (import.Count > 0)
             {
-                ProductionOrdersBuffer = import;
+                ProductionOrdersBuffer.Concat(import); //TODO: check ìf order already in system
                 return true;
             }
             else

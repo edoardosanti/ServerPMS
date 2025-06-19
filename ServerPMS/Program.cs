@@ -10,6 +10,8 @@ namespace ServerPMS
     {
         static void Main(string[] args)
         {
+            //debug 
+
             SDT SDT = new SDT("LS Data", "2.0", "PMS");
 
             string filename = "/Users/edoardosanti/Downloads/TEST_IRS.xlsx";
