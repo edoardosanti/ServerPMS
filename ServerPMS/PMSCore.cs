@@ -28,11 +28,14 @@ namespace ServerPMS
 
         }
 
-        public bool ImportOrderExcel(string filename)
+        public bool ImportOrdersFromExcelFile(string filename, ExcelOrderParserParams parserParams=null)
         {
-            ExcelOrderParser excelParser = new ExcelOrderParser(
+            ExcelOrderParser excelParser;
+            if (parserParams != null)
+                excelParser = new ExcelOrderParser(filename, parserParams);
+            else
+                excelParser = new ExcelOrderParser(filename,
                 new ExcelOrderParserParams(
-                    filename,
                     "CODE",
                     "DESCRIPTION",
                     "QUANTITY",

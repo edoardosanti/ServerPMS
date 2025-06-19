@@ -11,10 +11,9 @@ namespace ServerPMS
     public class ExcelOrderParserParams
     {
         public Dictionary<string, string> headersMap;
-        public string filename;
 
-        public ExcelOrderParserParams(string filename, string partCodeHeader, string partDescriptionHeader, string qtyHeader, string customerOrderRefHeader, string defaultProdUnitHeader, string moldIDHeader, string moldLocationHeader, string moldNotesHeader, string customerNameHeader, string deliveryFacilityHeader, string deliveryDateHeader)
-        {
+        public ExcelOrderParserParams(string partCodeHeader, string partDescriptionHeader, string qtyHeader, string customerOrderRefHeader, string defaultProdUnitHeader, string moldIDHeader, string moldLocationHeader, string moldNotesHeader, string customerNameHeader, string deliveryFacilityHeader, string deliveryDateHeader)
+        { 
             headersMap = new Dictionary<string, string>();
 
             headersMap["PartCode"] = partCodeHeader;
@@ -29,7 +28,6 @@ namespace ServerPMS
             headersMap["DeliveryFacility"] = deliveryFacilityHeader;
             headersMap["DeliveryDate"] = deliveryDateHeader;
 
-            this.filename = filename;
         }
     }
 
@@ -45,7 +43,7 @@ namespace ServerPMS
         Dictionary<string, string> headersMap;
 
 
-        public ExcelOrderParser(ExcelOrderParserParams parameters)
+        public ExcelOrderParser(string filename, ExcelOrderParserParams parameters)
         {
 
             headersLocationMap = new Dictionary<string, string>();
@@ -53,7 +51,7 @@ namespace ServerPMS
             
             try
             {
-                workbook = new XLWorkbook(parameters.filename);
+                workbook = new XLWorkbook(filename);
                 worksheets = workbook.Worksheets;
                 wrksheet = worksheets.Worksheet(1);
                 if (wrksheet.LastRowUsed().RowNumber() >= 2)
