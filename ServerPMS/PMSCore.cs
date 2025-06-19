@@ -10,13 +10,12 @@ namespace ServerPMS
     public class PMSCore
     {
 
-        SDT SDT;
         List<ProductionOrder> ProductionOrdersBuffer;
         
         public PMSCore()
         {
 
-            SDT = new SDT("LS Data", "2.0", "PMS");
+            
             string filename = string.Empty;
 
             //initializing production enviroment
@@ -60,6 +59,7 @@ namespace ServerPMS
             else
                 return false;
         }
+
         public string StrDumpBuffer()
         {
             string s = string.Empty;

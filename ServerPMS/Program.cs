@@ -10,11 +10,13 @@ namespace ServerPMS
     {
         static void Main(string[] args)
         {
+            SDT SDT = new SDT("LS Data", "2.0", "PMS");
+
             string filename = "/Users/edoardosanti/Downloads/TEST_IRS.xlsx";
 
             PMSCore core = new PMSCore();
 
-            core.ImportOrderExcel(filename);
+            core.ImportOrdersFromExcelFile(filename);
             Console.WriteLine(core.StrDumpBuffer());
             
         }
