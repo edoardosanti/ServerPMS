@@ -4,20 +4,50 @@
 //
 //
 using System;
+using Microsoft.Data.Sqlite;
+using DocumentFormat.OpenXml.Wordprocessing;
+using System.Data.Common;
 
 namespace ServerPMS
 {
+    public struct PMSCoreSettings
+    {
+        public string WAL_PATH;
+        public string SQLITE_DB_FILE;
+    }
+
     public class PMSCore
     {
 
+        bool RAMOnlyMode=false;
+
         List<ProductionOrder> ProductionOrdersBuffer;
 
-        public delegate string SettingsLoader(string filename);
-        public delegate string DBAccessor(string sqlCommand);
+        private delegate void CDBADelegate(string sql);
+        private delegate Task<string> QDBADelegate(string sql);
 
+        public CommandDBAccessor CmdDBA;
+        CDBADelegate CDBAOperation;
+        public QueryDBAccessor QueryDBA;
+        QDBADelegate QDBAOperation;
 
-        public PMSCore()
+        public PMSCore(PMSCoreSettings settings)
         {
+   
+            //initialize WAL
+            WALLogger logger = new WALLogger(settings.WAL_PATH);
+
+            //initialize db env
+            using var conn = new SqliteConnection(string.Format("Data Source={0};", settings.SQLITE_DB_FILE));
+            conn.Open();
+            using var cmd = new SqliteCommand("PRAGMA journal_mode=WAL;", conn);  //enable Write Ahead Log (WAl) mode
+            cmd.ExecuteNonQuery();
+            CmdDBA = new CommandDBAccessor(settings.SQLITE_DB_FILE,logger.Log,logger.Flush);
+            QueryDBA = new QueryDBAccessor(settings.SQLITE_DB_FILE);
+
+            //define delegates to encapsulate logging and DB operations -- probabilemente da cambiare
+            CDBAOperation = CmdDBA.EnqueueSql;
+            QDBAOperation = async (string sql) => {return await QueryDBA.QueryAsync(sql, (DbDataReader dbdr) => { return dbdr.Read() ? dbdr.GetString(0) : "UNKNOWN"; }); };
 
             ProductionOrdersBuffer = new List<ProductionOrder>();
 
@@ -29,8 +59,6 @@ namespace ServerPMS
             PE.AddUnit(UnitType.CNCLathe, "Haas");
 
         }
-
-        private 
 
         public bool ImportOrdersFromExcelFile(string filename, ExcelOrderParserParams parserParams=null)
         {

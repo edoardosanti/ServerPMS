@@ -89,6 +89,15 @@ namespace ServerPMS
 
             foreach (IXLRow row in wrksheet.Rows(2, last))
             {
+                DateTime delDate;
+                try
+                {
+                    delDate = DateTime.Parse(row.Cell(headersLocationMap["DeliveryDate"]).GetString());
+                }
+                catch
+                {
+                    throw;
+                }
                 orders.Add(new ProductionOrder(
                     row.Cell(headersLocationMap["PartCode"]).GetString(),
                     row.Cell(headersLocationMap["PartDescription"]).GetString(),
@@ -100,7 +109,7 @@ namespace ServerPMS
                     row.Cell(headersLocationMap["MoldNotes"]).GetString(),
                     row.Cell(headersLocationMap["CustomerName"]).GetString(),
                     row.Cell(headersLocationMap["DeliveryFacility"]).GetString(),
-                    row.Cell(headersLocationMap["DeliveryDate"]).GetString()
+                    delDate.ToShortDateString()
                     ));
             }
             return orders;
