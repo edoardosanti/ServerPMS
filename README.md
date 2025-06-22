@@ -4,6 +4,7 @@
 - Implementare ICloneable su tutte le classi
 - Finire implementazione di GlobalConfigManager e supporto per hot reload
 - Finire implementazione della configurazione ProdEnv all'avvio
+- Aggiungere check file WAL in CheckDBFile()
 
 
 ## Workflow da seguire
