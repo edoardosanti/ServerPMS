@@ -10,44 +10,60 @@ using DocumentFormat.OpenXml.Math;
 
 namespace ServerPMS
 {
+    public class SQLiteDatabaseConf
+    {
+        public string FilePath { get; set; }
+        public int Timeout { get; set; }
+    }
+
+    public class WALConf
+    {
+        public string WALFilePath { get; set; }
+    }
+
+    public class PEConf
+    {
+        public ProdUnitConf[] units { get; set; }
+    }
+
+    public class ProdUnitConf
+    {
+        public UnitType type { get; set; }
+        public int DBId { get; set; }
+    }
+
+    public class UserConf
+    {
+        public int DBId { get; set; }
+    }
+
+    public class Personnel
+    {
+        public UserConf[] users { get; set; }
+    }
+
     public class PMSConfig
     {
-        public class SQLiteDatabase
-        {
-            public string FilePath { get; set; }
-            public int Timeout { get; set; }
-        }
+   
 
-        public class WALConf
-        {
-            public string WALFilePath { get; set; }
-        }
-
-        public class PEConf
-        {
-            public ProdUnitConf[] units { get; set; }
-        }
-
-        public class ProdUnitConf
-        {
-            public UnitType type { get; set; }
-            public int DBId { get; set; }
-        }
-
-        public class User
-        {
-            public int DBId { get; set; }
-        }
-
-        public class Personnel
-        {
-            public User[] users { get; set; }
-        }
-        public SDT App { get; set; }
-        public SQLiteDatabase Database { get; set; }
+        public SDT SoftwareDescTable { get; set; }
+        public SQLiteDatabaseConf Database { get; set; }
         public WALConf WAL { set; get; }
         public PEConf ProdEnv {get; set;}
         public Personnel Users { get; set; }
+    }
+
+    public class PMSDefaultConfig : PMSConfig
+    {
+        public PMSDefaultConfig()
+        {
+            base.SoftwareDescTable = new SDT { Author = "LS Data", Version = "2.0 Dev", PackageName = "PMS" };
+            base.Database = new SQLiteDatabaseConf { FilePath = "pms_database.db", Timeout = 30 };
+            base.WAL = new WALConf { WALFilePath = "wal.walfile" };
+            base.ProdEnv = new PEConf { units = null };
+            base.Users = new Personnel { users = null };
+
+        }
     }
 }
 
