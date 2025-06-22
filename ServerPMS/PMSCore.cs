@@ -10,12 +10,6 @@ using System.Data.Common;
 
 namespace ServerPMS
 {
-    public struct PMSCoreSettings
-    {
-        public string WAL_PATH;
-        public string SQLITE_DB_FILE;
-    }
-
     public class PMSCore
     {
 
@@ -24,49 +18,81 @@ namespace ServerPMS
         List<ProductionOrder> ProductionOrdersBuffer;
 
         private delegate void CDBADelegate(string sql);
-        private delegate Task<string> QDBADelegate(string sql);
+        private delegate Task<string> QDBADataDelegate(string sql);
+        private delegate Task<List<string>> QDBARowDelegate(string sql);
 
         public CommandDBAccessor CmdDBA;
         CDBADelegate CDBAOperation;
         public QueryDBAccessor QueryDBA;
-        QDBADelegate QDBAOperation;
+        QDBADataDelegate QDBADataOperation;
+        QDBARowDelegate QDBARowOperation;
 
-        //TODO settings as struct -> settings as .NET configuration json
-
-        public PMSCore(PMSCoreSettings settings)
+        public PMSCore()
         {
    
             //initialize WAL
-            WALLogger logger = new WALLogger(settings.WAL_PATH);
+            WALLogger logger = new WALLogger(GlobalConfigManager.GlobalConfig.WAL.WALFilePath);
 
-            //initialize db env
-            using var conn = new SqliteConnection(string.Format("Data Source={0};", settings.SQLITE_DB_FILE));
+
+
+
+            //DB OPERATING ENVIROMENT INITIALIZATION
+            //open service connection
+            using var conn = new SqliteConnection(string.Format("Data Source={0};", GlobalConfigManager.GlobalConfig.Database.FilePath));
             conn.Open();
+
+            //enable WAL mode
             using var cmd = new SqliteCommand("PRAGMA journal_mode=WAL;", conn);  //enable Write Ahead Log (WAl) mode
             cmd.ExecuteNonQuery();
-            CmdDBA = new CommandDBAccessor(settings.SQLITE_DB_FILE,logger.Log,logger.Flush);
-            QueryDBA = new QueryDBAccessor(settings.SQLITE_DB_FILE);
+
+            //starts DBAs
+            CmdDBA = new CommandDBAccessor(GlobalConfigManager.GlobalConfig.Database.FilePath, logger.Log,logger.Flush);
+            QueryDBA = new QueryDBAccessor(GlobalConfigManager.GlobalConfig.Database.FilePath);
 
             //define delegates to encapsulate logging and DB operations -- probabilemente da cambiare
             CDBAOperation = CmdDBA.EnqueueSql;
-            QDBAOperation = async (string sql) => {return await QueryDBA.QueryAsync(sql, (DbDataReader dbdr) => { return dbdr.Read() ? dbdr.GetString(0) : "UNKNOWN"; }); };
+            QDBADataOperation = async (string sql) => {return await QueryDBA.QueryAsync(sql, (DbDataReader dbdr) => {
+                return dbdr.Read() ? dbdr.GetString(0) : "UNKNOWN";
+            }); };
+            QDBARowOperation = async (string sql) => { return await QueryDBA.QueryAsync(sql, (DbDataReader dbdr) =>
+            {
+                List<string> row = new List<string>();
 
-            ProductionOrdersBuffer = new List<ProductionOrder>();
+                for (int i = 0; i < dbdr.FieldCount; i++)
+                {
+                    row.Add(dbdr.Read() ? dbdr.GetString(i) : "UNKNOWN");
+                }
+                return row;
+            }); };
 
-            //initializing production enviroment TODO 
+            
+
+            //PRODUCTION ENVIROMENT INITIALIZATION
+
             ProdcutionEnviroment PE = new ProdcutionEnviroment();
 
-
-
-
+            if (GlobalConfigManager.GlobalConfig.ProdEnv.units == null)
+                Console.WriteLine("!!! No Production Units Found !!!");
+            else
+            {
+                foreach(ProdUnitConf conf in GlobalConfigManager.GlobalConfig.ProdEnv.units)
+                {
+                    string op = string.Format("SELECT * FROM prod_units WHERE ID = {0}", conf.DBId);
+                    List<string> info = QDBARowOperation(op).GetAwaiter().GetResult();
+                    
+                    
+                    
+                }
+            }
+            
 
             //PE CONFIGURATION
 
 
 
 
+            ProductionOrdersBuffer = new List<ProductionOrder>();
 
-            
         }
 
         public bool ImportOrdersFromExcelFile(string filename, ExcelOrderParserParams parserParams=null)

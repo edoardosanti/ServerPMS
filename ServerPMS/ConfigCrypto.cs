@@ -29,6 +29,10 @@ namespace ServerPMS
             }
         }
 
+        //VvntBl8CUmZw/lnxSP0+4uCkDKao1oZIssyb0FPR9oI=
+        //KAPkqWBxmnhJ50MTpmJb9w==
+
+
         public static void EncryptToFile(string msg, string outputPath)
         {
             ParseKey(EnvFilePath);

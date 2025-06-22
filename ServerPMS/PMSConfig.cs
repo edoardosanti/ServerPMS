@@ -52,18 +52,6 @@ namespace ServerPMS
         public PEConf ProdEnv {get; set;}
         public Personnel Users { get; set; }
     }
-
-    public class PMSDefaultConfig : PMSConfig
-    {
-        public PMSDefaultConfig()
-        {
-            base.SoftwareDescTable = new SDT { Author = "LS Data", Version = "2.0 Dev", PackageName = "PMS" };
-            base.Database = new SQLiteDatabaseConf { FilePath = "pms_database.db", Timeout = 30 };
-            base.WAL = new WALConf { WALFilePath = "wal.walfile" };
-            base.ProdEnv = new PEConf { units = null };
-            base.Users = new Personnel { users = null };
-
-        }
-    }
+    
 }
 
