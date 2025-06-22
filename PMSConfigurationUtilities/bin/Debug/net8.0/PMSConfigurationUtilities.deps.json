@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "PMSConfigurationUtilities/1.0.0": {
+        "runtime": {
+          "PMSConfigurationUtilities.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "PMSConfigurationUtilities/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

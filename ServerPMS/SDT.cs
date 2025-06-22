@@ -8,16 +8,10 @@ namespace ServerPMS
 {
     public struct SDT
     {
-        string Author;
-        string Version;
-        string PackageName;
+        public string Author { get; set; }
+        public string Version { get; set; }
+        public string PackageName { get; set; }
    
-        public SDT(string author, string version, string packageName)
-        {
-            Author = author;
-            Version = version;
-            PackageName = packageName;
-        }
     }
 }
 

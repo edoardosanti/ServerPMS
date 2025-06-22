@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServerPMS", "ServerPMS\Serv
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServerPMSTests", "Tests\ServerPMSTests.csproj", "{D15F6135-F474-4541-B200-183693D75B0D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PMSConfigurationUtilities", "PMSConfigurationUtilities\PMSConfigurationUtilities.csproj", "{B4EE9EFD-9F81-42DA-AE53-1864D7D84FF6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{D15F6135-F474-4541-B200-183693D75B0D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D15F6135-F474-4541-B200-183693D75B0D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D15F6135-F474-4541-B200-183693D75B0D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B4EE9EFD-9F81-42DA-AE53-1864D7D84FF6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B4EE9EFD-9F81-42DA-AE53-1864D7D84FF6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B4EE9EFD-9F81-42DA-AE53-1864D7D84FF6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B4EE9EFD-9F81-42DA-AE53-1864D7D84FF6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
