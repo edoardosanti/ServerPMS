@@ -26,7 +26,9 @@ namespace ServerPMS
 
             // Deserialize the JSON into the strongly typed config class
             GlobalConfig = JsonSerializer.Deserialize<PMSConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            RAMConfig = GlobalConfig
+
+            //RAMConfig = GlobalConfig TODO: ICloenable su tutte le classi utili.
+
             if (GlobalConfig == null)
                 throw new InvalidOperationException("Failed to load decrypted configuration.");
 

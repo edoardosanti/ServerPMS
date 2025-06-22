@@ -80,7 +80,7 @@ namespace ServerPMS
                     string op = string.Format("SELECT * FROM prod_units WHERE ID = {0}", conf.DBId);
                     List<string> info = QDBARowOperation(op).GetAwaiter().GetResult();
                     
-                    
+                    //add unit (asnyc config -> info.getresult())
                     
                 }
             }
