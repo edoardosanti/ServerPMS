@@ -1,0 +1,142 @@
+{
+  "format": 1,
+  "restore": {
+    "/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/PMSConfigurationUtilities.csproj": {}
+  },
+  "projects": {
+    "/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/PMSConfigurationUtilities.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/PMSConfigurationUtilities.csproj",
+        "projectName": "PMSConfigurationUtilities",
+        "projectPath": "/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/PMSConfigurationUtilities.csproj",
+        "packagesPath": "/Users/edoardosanti/.nuget/packages/",
+        "outputPath": "/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/edoardosanti/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "/usr/local/share/dotnet/library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "/Users/edoardosanti/Projects/ServerPMS/ServerPMS/ServerPMS.csproj": {
+                "projectPath": "/Users/edoardosanti/Projects/ServerPMS/ServerPMS/ServerPMS.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/8.0.401/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/Users/edoardosanti/Projects/ServerPMS/ServerPMS/ServerPMS.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/edoardosanti/Projects/ServerPMS/ServerPMS/ServerPMS.csproj",
+        "projectName": "ServerPMS",
+        "projectPath": "/Users/edoardosanti/Projects/ServerPMS/ServerPMS/ServerPMS.csproj",
+        "packagesPath": "/Users/edoardosanti/.nuget/packages/",
+        "outputPath": "/Users/edoardosanti/Projects/ServerPMS/ServerPMS/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/edoardosanti/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "/usr/local/share/dotnet/library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "ClosedXML": {
+              "target": "Package",
+              "version": "[0.105.0, )"
+            },
+            "Microsoft.Data.Sqlite": {
+              "target": "Package",
+              "version": "[9.0.6, )"
+            },
+            "Microsoft.Extensions.Configuration": {
+              "target": "Package",
+              "version": "[9.0.6, )"
+            },
+            "Microsoft.Extensions.Configuration.Abstractions": {
+              "target": "Package",
+              "version": "[9.0.6, )"
+            },
+            "Microsoft.Extensions.Configuration.Json": {
+              "target": "Package",
+              "version": "[9.0.6, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/8.0.401/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

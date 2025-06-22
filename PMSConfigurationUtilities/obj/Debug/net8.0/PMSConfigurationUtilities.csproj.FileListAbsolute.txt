@@ -1,0 +1,15 @@
+/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/bin/Debug/net8.0/PMSConfigurationUtilities
+/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/bin/Debug/net8.0/PMSConfigurationUtilities.deps.json
+/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/bin/Debug/net8.0/PMSConfigurationUtilities.runtimeconfig.json
+/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/bin/Debug/net8.0/PMSConfigurationUtilities.dll
+/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/bin/Debug/net8.0/PMSConfigurationUtilities.pdb
+/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/obj/Debug/net8.0/PMSConfigurationUtilities.GeneratedMSBuildEditorConfig.editorconfig
+/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/obj/Debug/net8.0/PMSConfigurationUtilities.AssemblyInfoInputs.cache
+/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/obj/Debug/net8.0/PMSConfigurationUtilities.AssemblyInfo.cs
+/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/obj/Debug/net8.0/PMSConfigurationUtilities.csproj.CoreCompileInputs.cache
+/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/obj/Debug/net8.0/PMSConfigurationUtilities.sourcelink.json
+/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/obj/Debug/net8.0/PMSConfigurationUtilities.dll
+/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/obj/Debug/net8.0/refint/PMSConfigurationUtilities.dll
+/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/obj/Debug/net8.0/PMSConfigurationUtilities.pdb
+/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/obj/Debug/net8.0/PMSConfigurationUtilities.genruntimeconfig.cache
+/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/obj/Debug/net8.0/ref/PMSConfigurationUtilities.dll

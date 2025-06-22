@@ -31,6 +31,8 @@ namespace ServerPMS
         public QueryDBAccessor QueryDBA;
         QDBADelegate QDBAOperation;
 
+        //TODO settings as struct -> settings as .NET configuration json
+
         public PMSCore(PMSCoreSettings settings)
         {
    
@@ -51,13 +53,20 @@ namespace ServerPMS
 
             ProductionOrdersBuffer = new List<ProductionOrder>();
 
-            //initializing production enviroment
+            //initializing production enviroment TODO 
             ProdcutionEnviroment PE = new ProdcutionEnviroment();
-            PE.AddUnit(UnitType.MoldingMachine, "Krauss Maffei");
-            PE.AddUnit(UnitType.MoldingMachine, "Negri Bossi");
-            PE.AddUnit(UnitType.MoldingMachine, "Battenfeld");
-            PE.AddUnit(UnitType.CNCLathe, "Haas");
 
+
+
+
+
+            //PE CONFIGURATION
+
+
+
+
+
+            
         }
 
         public bool ImportOrdersFromExcelFile(string filename, ExcelOrderParserParams parserParams=null)

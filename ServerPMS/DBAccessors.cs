@@ -184,7 +184,7 @@ namespace ServerPMS
                     {
                         using var cmd = connection.CreateCommand();
                         cmd.CommandText = request.Sql;
-                        Console.WriteLine("DBA Executing: {0}", cmd.CommandText);
+                        //Console.WriteLine("DBA Executing: {0}", cmd.CommandText);
                         cmd.ExecuteNonQuery();
                         request.CompletionSource.SetResult();
                         WALFlushFunc();
