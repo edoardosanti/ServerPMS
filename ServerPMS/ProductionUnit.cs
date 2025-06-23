@@ -16,8 +16,8 @@ namespace ServerPMS
 
         ReorderableQueue<ProductionOrder> Queue;
 
-        State status;
-        public State UnitStatus
+        UnitState status;
+        public UnitState UnitStatus
         {
             private set
             {
@@ -59,7 +59,7 @@ namespace ServerPMS
         {
             ID = ++code;
             UnitNotes = notes;
-            UnitStatus = State.Standby;
+            UnitStatus = UnitState.Standby;
             UnitType = type;
 
             Queue = new ReorderableQueue<ProductionOrder>(orders);
@@ -74,19 +74,19 @@ namespace ServerPMS
         public void Start()
         {
             CurrentProduction = Queue.GetNextAndDequeue();
-            UnitStatus = State.Running;
+            UnitStatus = UnitState.Running;
         }
 
         public void Stop()
         {
             CurrentProduction = null;
-            UnitStatus = State.Standby;
+            UnitStatus = UnitState.Standby;
         }
 
         public void ChangeOver()
         {
             CurrentProduction = null;
-            UnitStatus = State.ChangeOver;
+            UnitStatus = UnitState.ChangeOver;
 
         }
 

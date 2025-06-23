@@ -93,7 +93,10 @@ namespace ServerPMS
                 ConfigCrypto.EncryptToFile(json, ENCRYPTED_CONFIG_FILE_NAME);
             }
 
-            GlobalConfigManager.Load(ENCRYPTED_CONFIG_FILE_NAME, CCENV_FILE_NAME);
+            GlobalConfigManager.EncryptedConfigPath = ENCRYPTED_CONFIG_FILE_NAME;
+            GlobalConfigManager.KeyFilePath = CCENV_FILE_NAME;
+            GlobalConfigManager.Load();
+
             return wasPresent;
         }
 

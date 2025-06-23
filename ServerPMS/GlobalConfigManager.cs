@@ -8,31 +8,58 @@ using System.Reflection.Emit;
 using DocumentFormat.OpenXml.Wordprocessing;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using System.Runtime.CompilerServices;
 
 namespace ServerPMS
 {
     static public class GlobalConfigManager
     {
-        public static PMSConfig GlobalConfig { private set; get; }
-        public static PMSConfig RAMConfig { set; get; }
-        
-        public static void Load(string encryptedConfigPath, string keyFilePath)
+        public static PMSConfig GlobalFileConfig { private set; get; }
+        public static PMSConfig GlobalRAMConfig { set; get; }
+
+        public static string EncryptedConfigPath { get; set; }
+        public static string KeyFilePath { get; set; }
+
+        static GlobalConfigManager()
+        {
+            GlobalFileConfig = null;
+            GlobalRAMConfig = null;
+            EncryptedConfigPath = string.Empty;
+            KeyFilePath = string.Empty;
+        }
+
+        public static void Load()
         {
             // Set the encryption key file path for ConfigCrypto
-            ConfigCrypto.EnvFilePath = keyFilePath;
 
-            // Decrypt the configuration file into a JSON string
-            string json = ConfigCrypto.DecryptFromFile(encryptedConfigPath);
+            if (EncryptedConfigPath != string.Empty && KeyFilePath != string.Empty)
+            {
 
-            // Deserialize the JSON into the strongly typed config class
-            GlobalConfig = JsonSerializer.Deserialize<PMSConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                // Decrypt the configuration file into a JSON string
+                string json = ConfigCrypto.DecryptFromFile(EncryptedConfigPath);
 
-            //RAMConfig = GlobalConfig TODO: ICloenable su tutte le classi utili.
+                // Deserialize the JSON into the strongly typed config class
+                GlobalFileConfig = JsonSerializer.Deserialize<PMSConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                //load config to ram
+                GlobalRAMConfig = GlobalFileConfig.Clone();
 
-            if (GlobalConfig == null)
-                throw new InvalidOperationException("Failed to load decrypted configuration.");
+                if (GlobalFileConfig == null)
+                    throw new InvalidOperationException("Failed to load decrypted configuration.");
 
+            }
+        }
 
+        public static void DumpRAMConfigToFile()
+        {
+            //serialize ram configuration
+            string json = JsonSerializer.Serialize(GlobalRAMConfig, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            //write to encrypted file
+            ConfigCrypto.EncryptToFile(json, EncryptedConfigPath);
+
+            //reload file
+            Load();
+            
         }
     }
 }

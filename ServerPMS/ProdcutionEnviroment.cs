@@ -19,9 +19,10 @@ namespace ServerPMS
 
         }
 
-        public void AddUnit(UnitType type, string notes,params ProductionOrder[] orders)
+        public int AddUnit(UnitType type, string notes,params ProductionOrder[] orders)
         {
-            prodUnits.Add(new ProductionUnit(type, notes,orders));
+            prodUnits.Add(new ProductionUnit(type, notes, orders));
+            return prodUnits.Last().ID;
         }
 
         public bool RemoveUnit(int id)

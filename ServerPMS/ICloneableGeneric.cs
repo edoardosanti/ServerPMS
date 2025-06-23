@@ -1,16 +1,14 @@
 ﻿// PMS Project V1.0
 // LSData - all rights reserved
-// State.cs
-
-
+// ICloneableGeneric.cs
+//
+//
 using System;
 namespace ServerPMS
 {
-    public enum State
+    public interface ICloneable<T>
     {
-        Running,
-        Standby,
-        ChangeOver
+        T Clone();
     }
 }
 

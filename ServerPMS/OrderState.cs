@@ -6,7 +6,7 @@
 using System;
 namespace ServerPMS
 {
-    public enum ProdOrderState
+    public enum OrderState
     {
         Imported,
         InQueue,

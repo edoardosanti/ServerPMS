@@ -19,7 +19,7 @@ namespace ServerPMS
 
         private delegate void CDBADelegate(string sql);
         private delegate Task<string> QDBADataDelegate(string sql);
-        private delegate Task<List<string>> QDBARowDelegate(string sql);
+        private delegate Task<Dictionary<string,string>> QDBARowDelegate(string sql);
 
         public CommandDBAccessor CmdDBA;
         CDBADelegate CDBAOperation;
@@ -31,14 +31,14 @@ namespace ServerPMS
         {
    
             //initialize WAL
-            WALLogger logger = new WALLogger(GlobalConfigManager.GlobalConfig.WAL.WALFilePath);
+            WALLogger logger = new WALLogger(GlobalConfigManager.GlobalRAMConfig.WAL.WALFilePath);
 
 
 
 
             //DB OPERATING ENVIROMENT INITIALIZATION
             //open service connection
-            using var conn = new SqliteConnection(string.Format("Data Source={0};", GlobalConfigManager.GlobalConfig.Database.FilePath));
+            using var conn = new SqliteConnection(string.Format("Data Source={0};", GlobalConfigManager.GlobalRAMConfig.Database.FilePath));
             conn.Open();
 
             //enable WAL mode
@@ -46,8 +46,8 @@ namespace ServerPMS
             cmd.ExecuteNonQuery();
 
             //starts DBAs
-            CmdDBA = new CommandDBAccessor(GlobalConfigManager.GlobalConfig.Database.FilePath, logger.Log,logger.Flush);
-            QueryDBA = new QueryDBAccessor(GlobalConfigManager.GlobalConfig.Database.FilePath);
+            CmdDBA = new CommandDBAccessor(GlobalConfigManager.GlobalRAMConfig.Database.FilePath, logger.Log,logger.Flush);
+            QueryDBA = new QueryDBAccessor(GlobalConfigManager.GlobalRAMConfig.Database.FilePath);
 
             //define delegates to encapsulate logging and DB operations -- probabilemente da cambiare
             CDBAOperation = CmdDBA.EnqueueSql;
@@ -56,42 +56,38 @@ namespace ServerPMS
             }); };
             QDBARowOperation = async (string sql) => { return await QueryDBA.QueryAsync(sql, (DbDataReader dbdr) =>
             {
-                List<string> row = new List<string>();
-
-                for (int i = 0; i < dbdr.FieldCount; i++)
+                Dictionary<string,string> row = new Dictionary<string, string>();
+                if (dbdr.Read())
                 {
-                    row.Add(dbdr.Read() ? dbdr.GetString(i) : "UNKNOWN");
+                    for (int i = 0; i < dbdr.FieldCount; i++)
+                    {
+                        row.Add(dbdr.GetName(i),dbdr.GetValue(i)?.ToString() ?? "NULL");
+                    }
                 }
                 return row;
             }); };
 
+
+            //ORDER LIST LOADING
+            ProductionOrdersBuffer = new List<ProductionOrder>();
+
             
-
             //PRODUCTION ENVIROMENT INITIALIZATION
-
             ProdcutionEnviroment PE = new ProdcutionEnviroment();
 
-            if (GlobalConfigManager.GlobalConfig.ProdEnv.units == null)
+            if (GlobalConfigManager.GlobalRAMConfig.ProdEnv.units == null)
                 Console.WriteLine("!!! No Production Units Found !!!");
             else
             {
-                foreach(ProdUnitConf conf in GlobalConfigManager.GlobalConfig.ProdEnv.units)
+                foreach(ProdUnitConf conf in GlobalConfigManager.GlobalRAMConfig.ProdEnv.units)
                 {
                     string op = string.Format("SELECT * FROM prod_units WHERE ID = {0}", conf.DBId);
-                    List<string> info = QDBARowOperation(op).GetAwaiter().GetResult();
-                    
-                    //add unit (asnyc config -> info.getresult())
-                    
+                    Dictionary<string,string> info = QDBARowOperation(op).GetAwaiter().GetResult();
+                    int localId = PE.AddUnit((UnitType)int.Parse(info["type"]),info["notes"]);
+                    //Console.WriteLine(PE.Units.Find(x => x.ID == localId).ToInfo());
                 }
             }
-            
 
-            //PE CONFIGURATION
-
-
-
-
-            ProductionOrdersBuffer = new List<ProductionOrder>();
 
         }
 
