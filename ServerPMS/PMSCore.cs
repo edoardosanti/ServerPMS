@@ -18,11 +18,13 @@ namespace ServerPMS
         List<ProductionOrder> ProductionOrdersBuffer;
 
         private delegate void CDBADelegate(string sql);
+        private delegate Task CDBAAwaitableDelegate(string sql);
         private delegate Task<string> QDBADataDelegate(string sql);
         private delegate Task<Dictionary<string,string>> QDBARowDelegate(string sql);
 
         public CommandDBAccessor CmdDBA;
         CDBADelegate CDBAOperation;
+        CDBAAwaitableDelegate CDBAAwaitableOperation;
         public QueryDBAccessor QueryDBA;
         QDBADataDelegate QDBADataOperation;
         QDBARowDelegate QDBARowOperation;
@@ -32,7 +34,6 @@ namespace ServerPMS
    
             //initialize WAL
             WALLogger logger = new WALLogger(GlobalConfigManager.GlobalRAMConfig.WAL.WALFilePath);
-
 
 
 
@@ -50,7 +51,9 @@ namespace ServerPMS
             QueryDBA = new QueryDBAccessor(GlobalConfigManager.GlobalRAMConfig.Database.FilePath);
 
             //define delegates to encapsulate logging and DB operations -- probabilemente da cambiare
-            CDBAOperation = CmdDBA.EnqueueSql;
+            CDBAOperation = (string sql) => { CmdDBA.EnqueueSql(sql); };
+            CDBAAwaitableOperation = CmdDBA.EnqueueSql;
+
             QDBADataOperation = async (string sql) => {return await QueryDBA.QueryAsync(sql, (DbDataReader dbdr) => {
                 return dbdr.Read() ? dbdr.GetString(0) : "UNKNOWN";
             }); };
@@ -68,17 +71,32 @@ namespace ServerPMS
             }); };
 
 
+
+            //REPLAY WAL IF NEEDED
+
+            //for each SQL command in WAL
+            foreach(string op in logger.Replay())
+            {
+                //send command to CDBA and wait for execution 
+                CDBAAwaitableOperation(op).Wait();
+            }
+
+
+
             //ORDER LIST LOADING
             ProductionOrdersBuffer = new List<ProductionOrder>();
 
-            
+
+
             //PRODUCTION ENVIROMENT INITIALIZATION
+            //initialize prodenv
             ProdcutionEnviroment PE = new ProdcutionEnviroment();
 
             if (GlobalConfigManager.GlobalRAMConfig.ProdEnv.units == null)
                 Console.WriteLine("!!! No Production Units Found !!!");
             else
             {
+                //for each unit conf in unit add unit (info from db record)
                 foreach(ProdUnitConf conf in GlobalConfigManager.GlobalRAMConfig.ProdEnv.units)
                 {
                     string op = string.Format("SELECT * FROM prod_units WHERE ID = {0}", conf.DBId);

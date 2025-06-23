@@ -56,12 +56,12 @@ namespace ServerPMS
 
         static bool CheckDBFile()
         {
-            bool wasPresent = true;
+            bool wasPresentDB = true;
 
             //check if file exists
             if (!File.Exists(DB_FILE_NAME))
             {
-                wasPresent = false;
+                wasPresentDB = false;
                 //create file
                 File.Create(DB_FILE_NAME);
                 using (SqliteConnection c = new SqliteConnection(string.Format("Data Source={0};Mode=ReadWrite;", DB_FILE_NAME)))
@@ -71,7 +71,13 @@ namespace ServerPMS
                 }
 
             }
-            return wasPresent;
+
+            //check if application-level WAL exists
+            if (!File.Exists(WAL_FILE_NAME))
+            {
+                File.Create(WAL_FILE_NAME);
+            }
+            return wasPresentDB;
         }
 
         static bool CheckLoadPMSConfigurationFile()
