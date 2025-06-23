@@ -169,11 +169,12 @@ namespace ServerPMS
         }
 
 
-        public void EnqueueSql(string sql)
+        public Task EnqueueSql(string sql)
         {
             WALLogFunc(sql);
             var request = new CommandRequest { Sql = sql };
             sqlQueue.Add(request);
+            return request.CompletionSource.Task;
         }
 
         private async Task WorkerLoopAsync()

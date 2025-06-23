@@ -14,12 +14,15 @@ namespace ServerPMS
     {
         private readonly BinaryWriter _writer;
         private readonly FileStream _stream;
+        public string WALFilePat { get; set; }
 
         public WALLogger(string path)
         {
             _stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite);
             _writer = new BinaryWriter(_stream);
+            WALFilePat = path;
         }
+
 
         public void Log(string sql)
         {
@@ -29,11 +32,11 @@ namespace ServerPMS
             _writer.Flush(); // ensure it’s on disk
         }
 
-        public static IEnumerable<string> Replay(string path)
+        public IEnumerable<string> Replay()
         {
-            if (!File.Exists(path)) yield break;
+            if (!File.Exists(WALFilePat)) yield break;
 
-            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var stream = new FileStream(WALFilePat, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var reader = new BinaryReader(stream);
 
             while (stream.Position < stream.Length)
