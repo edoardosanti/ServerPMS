@@ -1,8 +1,8 @@
 # ServerPMS
 
 ## TODO List
-- Aggiungere check file WAL in CheckDBFile()
 - Implementare OrderManager
+- Progettare interprete e gestore clients
 
 
 ## Workflow da seguire
