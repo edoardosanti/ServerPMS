@@ -38,6 +38,7 @@ namespace ServerPMS
 
 
             //DB OPERATING ENVIROMENT INITIALIZATION
+            #region
             //open service connection
             using var conn = new SqliteConnection(string.Format("Data Source={0};", GlobalConfigManager.GlobalRAMConfig.Database.FilePath));
             conn.Open();
@@ -69,26 +70,33 @@ namespace ServerPMS
                 }
                 return row;
             }); };
+            #endregion
 
 
 
             //REPLAY WAL IF NEEDED
-
+            #region
             //for each SQL command in WAL
-            foreach(string op in logger.Replay())
+            foreach (string op in logger.Replay())
             {
                 //send command to CDBA and wait for execution 
                 CDBAAwaitableOperation(op).Wait();
             }
+            #endregion
 
 
 
             //ORDER LIST LOADING
+            #region
+
             ProductionOrdersBuffer = new List<ProductionOrder>();
 
 
+            #endregion
+
 
             //PRODUCTION ENVIROMENT INITIALIZATION
+            #region
             //initialize prodenv
             ProdcutionEnviroment PE = new ProdcutionEnviroment();
 
@@ -105,7 +113,7 @@ namespace ServerPMS
                     //Console.WriteLine(PE.Units.Find(x => x.ID == localId).ToInfo());
                 }
             }
-
+            #endregion
 
         }
 

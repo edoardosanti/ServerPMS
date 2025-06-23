@@ -39,7 +39,7 @@ namespace ServerPMS
 
         public PEConf Clone()
         {
-            return new PEConf { units = this.units.Clone() as ProdUnitConf[] };
+            return new PEConf { units = this.units?.Clone() as ProdUnitConf[]?? null };
         }
     }
 
@@ -70,7 +70,7 @@ namespace ServerPMS
 
         public Personnel Clone()
         {
-            return new Personnel { users = this.users.Clone() as UserConf[] };
+            return new Personnel { users = this.users?.Clone() as UserConf[] ?? null};
         }
     }
 

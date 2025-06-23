@@ -177,7 +177,7 @@ namespace ServerPMS
             }
         }
 
-        public ProdOrderState OrderStatus { private set; get; }
+        public OrderState OrderStatus { private set; get; }
 
         public ProductionOrder(string partCode, string partDescription, int qty, string customerOrderRef, int defaultProdUnit, string moldID, string moldLocation, string moldNotes, string customerName,string deliveryFacility, string deliveryDate)
         {
@@ -205,17 +205,17 @@ namespace ServerPMS
 
         public void SetInQueueState()
         {
-            OrderStatus = ProdOrderState.InQueue;
+            OrderStatus = OrderState.InQueue;
         }
 
         public void SetInProductionState()
         {
-            OrderStatus = ProdOrderState.InProduction;
+            OrderStatus = OrderState.InProduction;
         }
 
         public void SetCompletedState()
         {
-            OrderStatus = ProdOrderState.Completed;
+            OrderStatus = OrderState.Completed;
         }
 
         public override string ToString()
