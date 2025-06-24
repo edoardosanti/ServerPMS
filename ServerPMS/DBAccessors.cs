@@ -182,7 +182,7 @@ namespace ServerPMS
             connection.Dispose();
         }
 
-        public Task EnqueueSql(string sql, Guid CDBATransactionIdentifier = null)
+        public Task EnqueueSql(string sql, Guid CDBATransactionIdentifier)
         {
             WALLogFunc(sql);
             var request = new CDBARequest { Sql = sql, Type=CDBARequestType.SQLCommand, TransactionID = CDBATransactionIdentifier };
@@ -200,7 +200,7 @@ namespace ServerPMS
 
         public Task EnqueueTransactionCommit(Guid CDBATransactionIdentifier)
         {
-            WALLogFunc(string.Format("#CDBA#CTX:{0}", CDBATransactionIdentifier.ToString()));
+            WALLogFunc(string.Format("#CDBA#C:{0}", CDBATransactionIdentifier.ToString()));
             var request = new CDBARequest { Sql = "", Type = CDBARequestType.TransactionCommit, TransactionID = CDBATransactionIdentifier };
             sqlQueue.Add(request);
             return request.CompletionSource.Task;
@@ -208,7 +208,7 @@ namespace ServerPMS
 
         public Task EnqueueTransactionRollback(Guid CDBATransactionIdentifier)
         {
-            WALLogFunc(string.Format("#CDBA#RTX:{0}", CDBATransactionIdentifier.ToString()));
+            WALLogFunc(string.Format("#CDBA#R:{0}", CDBATransactionIdentifier.ToString()));
             var request = new CDBARequest { Sql = "", Type = CDBARequestType.TransactionRollback, TransactionID = CDBATransactionIdentifier };
             sqlQueue.Add(request);
             return request.CompletionSource.Task;

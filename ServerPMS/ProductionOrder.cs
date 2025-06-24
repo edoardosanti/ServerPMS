@@ -6,7 +6,7 @@ using System.Globalization;
 
 namespace ServerPMS
 {
-    public class ProductionOrder
+    public class ProductionOrder:IEquatable<ProductionOrder>
     {
         public string RuntimeID { private set; get; }
         public int DBId {  set; get; }
@@ -251,6 +251,14 @@ namespace ServerPMS
             else
                 throw new InvalidOperationException("Dump cant be empty");
             
+        }
+
+        public bool Equals(ProductionOrder order)
+        {
+            if (DBId == order.DBId || RuntimeID == order.RuntimeID)
+                return true;
+            else
+                return false;
         }
 
         public string ToInfo()

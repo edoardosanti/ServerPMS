@@ -4,6 +4,7 @@
 //
 //
 
+using DocumentFormat.OpenXml.Drawing.Diagrams;
 using Microsoft.Data.Sqlite;
 using System.Data.Common;
 
@@ -18,15 +19,23 @@ namespace ServerPMS
 
         public delegate void CDBADelegate(string sql);
         public delegate Task CDBAAwaitableDelegate(string sql);
+        public delegate void CDBATransactionOp(Guid id);
+        public delegate Task CDBAAwaitableTransactionOp(Guid id);
         public delegate Task<string> QDBADataDelegate(string sql);
         public delegate Task<Dictionary<string,string>> QDBARowDelegate(string sql);
 
         public CommandDBAccessor CmdDBA;
         public CDBADelegate CDBAOperation;
         public CDBAAwaitableDelegate CDBAAwaitableOperation;
+        public CDBATransactionOp CDBACommitOperation;
+        public CDBATransactionOp CDBARollbackOperation;
+        public CDBAAwaitableTransactionOp CDBAAwaitableCommitOperation;
+        public CDBAAwaitableTransactionOp CDBAAwaitableRollbackOperation;
+
         public QueryDBAccessor QueryDBA;
         public QDBADataDelegate QDBADataOperation;
         public QDBARowDelegate QDBARowOperation;
+
 
         public PMSCore()
         {
@@ -50,6 +59,10 @@ namespace ServerPMS
             //define delegates to encapsulate logging and DB operations -- probabilemente da cambiare
             CDBAOperation = (string sql) => { CmdDBA.EnqueueSql(sql); };
             CDBAAwaitableOperation = CmdDBA.EnqueueSql;
+            CDBACommitOperation = (Guid id) => { CmdDBA.EnqueueTransactionCommit(id); } ;
+            CDBARollbackOperation = (Guid id) => { CmdDBA.EnqueueTransactionRollback(id); };
+            CDBAAwaitableCommitOperation = CmdDBA.EnqueueTransactionCommit;
+            CDBAAwaitableRollbackOperation = CmdDBA.EnqueueTransactionRollback;
 
             QDBADataOperation = async (string sql) => {return await QueryDBA.QueryAsync(sql, (DbDataReader dbdr) => {
                 return dbdr.Read() ? dbdr.GetString(0) : "NULL";
@@ -75,8 +88,22 @@ namespace ServerPMS
             //for each SQL command in WAL
             foreach (string op in WALLogger.Replay())
             {
-                //send command to CDBA and wait for execution 
-                CDBAAwaitableOperation(op).Wait();
+                //send command to CDBA and wait for execution
+                if(op.Substring(0,6)== "#CDBA#")
+                {
+                    string[] command = op.Replace("#CDBA#", "").Split(":");
+                    switch (command.ElementAt(0))
+                    {
+                        case "C":
+                            CDBAAwaitableCommitOperation(Guid.Parse(command[1])).Wait();
+                            break;
+                        case "R":
+                            CDBAAwaitableRollbackOperation(Guid.Parse(command[1])).Wait();
+                            break;
+                    }
+                }
+                else
+                    CDBAAwaitableOperation(op).Wait();
             }
             #endregion
 
@@ -116,7 +143,7 @@ namespace ServerPMS
             //PRODUCTION ENVIROMENT INITIALIZATION
             #region
             //initialize prodenv
-            ProdcutionEnviroment PE = new ProdcutionEnviroment();
+            ProductionEnviroment PE = new ProductionEnviroment();
 
             if (GlobalConfigManager.GlobalRAMConfig.ProdEnv.units == null)
                 Console.WriteLine("!!! No Production Units Found !!!");

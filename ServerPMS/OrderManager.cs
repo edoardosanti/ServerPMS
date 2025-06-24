@@ -10,7 +10,7 @@ namespace ServerPMS
 {
     public class OrderManager
     {
-        public List<ProductionOrder> Orders { get; private set; }
+        public OrderBuffer Buffer;
         public event OrdersUpdatedHandler OnOrdersUpdate;
 
         public delegate void OrdersUpdatedHandler();
@@ -29,6 +29,8 @@ namespace ServerPMS
 
         public OrderManager(CommandDBAccessor CDBA, QueryDBAccessor QDBA)
         {
+            Buffer = new OrderBuffer(); 
+
             this.CDBA = CDBA;
             this.QDBA = QDBA;
 
@@ -79,8 +81,7 @@ namespace ServerPMS
 
         }
 
-
-        public void LoadFromDB()
+        private void LoadFromDB()
         {
             List<ProductionOrder> fromDB = new List<ProductionOrder>();
             //leggere ordini da DB e aggiungerli al bufffer
@@ -88,8 +89,14 @@ namespace ServerPMS
             foreach(string row in rows)
             {
                 fromDB.Add(ProductionOrder.FromDump(row));
+                
             }
-            Orders.Concat(fromDB);
+            Buffer.SmartAdd(fromDB);
+
+            foreach(ProductionOrder order in Buffer)
+            {
+                Console.WriteLine(order.ToShortInfo());
+            }
         }
 
         private void WriteToDB(ProductionOrder order)
@@ -123,7 +130,6 @@ namespace ServerPMS
             }
         }
 
-
         public void LoadFromExcelFile(string filename,ExcelOrderParserParams parserParams)
         {
             if (File.Exists(filename))
@@ -133,14 +139,17 @@ namespace ServerPMS
                 {
                     foreach (ProductionOrder order in parsed)
                     {
-                        WriteToDbd(order);
+                        WriteToDB(order);
                     }
+                    LoadFromDB();
                 }
                 else
                     throw new NullReferenceException("No orders found");
             }
             else
                 throw new FileNotFoundException("File not found", filename);
+
+            
         }
 
         private List<ProductionOrder> ParseFromExcel(string filename, ExcelOrderParserParams parserParams)

@@ -1,19 +1,19 @@
 ﻿// PMS Project V1.0
 // LSData - all rights reserved
-// ProdcutionEnviroment.cs
+// ProductionEnviroment.cs
 //
 //
 using System;
 
 namespace ServerPMS
 {
-    public class ProdcutionEnviroment
+    public class ProductionEnviroment
     {
         List<ProductionUnit> prodUnits;
 
         public List<ProductionUnit> Units => prodUnits;
 
-        public ProdcutionEnviroment()
+        public ProductionEnviroment()
         {
             prodUnits = new List<ProductionUnit>();
 
