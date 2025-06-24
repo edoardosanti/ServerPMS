@@ -2,16 +2,14 @@
 // LSData - all rights reserved
 // ProductionOrder.cs
 
+using System.Globalization;
+
 namespace ServerPMS
 {
     public class ProductionOrder
     {
-        static int c;
-        static ProductionOrder()
-        {
-            c = 0;
-        }
-        public int ID { private set; get; }
+        public string RuntimeID { private set; get; }
+        public int DBId {  set; get; }
 
         string code;
         public string PartCode
@@ -164,7 +162,9 @@ namespace ServerPMS
             {
                 try
                 {
-                    deliveryDate = DateOnly.Parse(value);
+                    string[] formats = { "dd/MM/yyyy", "d/MM/yyyy", "dd/M/yyyy", "d/M/yyyy" };
+                    deliveryDate = DateOnly.ParseExact(value, formats, CultureInfo.InvariantCulture);
+
                 }
                 catch {
                     throw;
@@ -179,11 +179,12 @@ namespace ServerPMS
 
         public OrderState OrderStatus { private set; get; }
 
-        public ProductionOrder(string partCode, string partDescription, int qty, string customerOrderRef, int defaultProdUnit, string moldID, string moldLocation, string moldNotes, string customerName,string deliveryFacility, string deliveryDate)
+        public ProductionOrder(string partCode, string partDescription, int qty, string customerOrderRef, int defaultProdUnit, string moldID, string moldLocation, string moldNotes, string customerName,string deliveryFacility, string deliveryDate, int DBId=-1, OrderState state=OrderState.Imported)
         {
             try
             {
-                ID = ++c;
+                this.DBId = DBId;
+                RuntimeID = Guid.NewGuid().ToString();
                 PartCode = partCode;
                 PartDescription = partDescription;
                 Qty = qty;
@@ -195,6 +196,7 @@ namespace ServerPMS
                 CustomerName = customerName;
                 DeliveryFacility = deliveryFacility;
                 DeliveryDate = deliveryDate;
+                OrderStatus = state;
             }
             catch
             {
@@ -220,7 +222,35 @@ namespace ServerPMS
 
         public override string ToString()
         {
-            return string.Format("{0}${1}${2}${3}${4}${5}${6}${7}${8}${9}${10}", PartCode, PartDescription, Qty, CustomerOrderRef, DefaultProductionUnit, MoldID, MoldLocation, MoldNotes, CustomerName, DeliveryFacility, DeliveryDate);
+            return string.Format("{0}${1}${2}${3}${4}${5}${6}${7}${8}${9}${10}${11}${12}${13}", DBId, RuntimeID, PartCode, PartDescription, Qty, CustomerOrderRef, DefaultProductionUnit, MoldID, MoldLocation, MoldNotes, CustomerName, DeliveryFacility, DeliveryDate,OrderStatus);
+        }
+
+        public static ProductionOrder FromDump(string dump)
+        {
+            ProductionOrder order;
+            if (dump != string.Empty)
+            {
+                string[] tmp = dump.Split("$");
+                order = new ProductionOrder(
+                    tmp[2],
+                    tmp[3],
+                    int.Parse(tmp[4]),
+                    tmp[5],
+                    int.Parse(tmp[6]),
+                    tmp[7],
+                    tmp[8],
+                    tmp[9],
+                    tmp[10],
+                    tmp[11],
+                    tmp[12],
+                    int.Parse(tmp[0]),
+                    (OrderState)Enum.Parse(typeof(OrderState), tmp[13])
+                    );
+                return order;
+            }
+            else
+                throw new InvalidOperationException("Dump cant be empty");
+            
         }
 
         public string ToInfo()

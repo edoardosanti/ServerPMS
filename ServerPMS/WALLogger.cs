@@ -3,28 +3,25 @@
 // WALLogger.cs
 //
 //
-using System;
+
 using System.Text;
-using System.Text.Json;
-using DocumentFormat.OpenXml.ExtendedProperties;
 
 namespace ServerPMS
 {
-    public class WALLogger : IDisposable
+    public static class WALLogger
     {
-        private readonly BinaryWriter _writer;
-        private readonly FileStream _stream;
-        public string WALFilePat { get; set; }
+        private static BinaryWriter _writer;
+        private static FileStream _stream;
+        public static string WALFilePath { get; set; }
 
-        public WALLogger(string path)
+
+        public static void Start()
         {
-            _stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+            _stream = new FileStream(WALFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
             _writer = new BinaryWriter(_stream);
-            WALFilePat = path;
         }
 
-
-        public void Log(string sql)
+        public static void Log(string sql)
         {
             var bytes = Encoding.UTF8.GetBytes(sql);
             _writer.Write(bytes.Length);
@@ -32,11 +29,11 @@ namespace ServerPMS
             _writer.Flush(); // ensure it’s on disk
         }
 
-        public IEnumerable<string> Replay()
+        public static IEnumerable<string> Replay()
         {
-            if (!File.Exists(WALFilePat)) yield break;
+            if (!File.Exists(WALFilePath)) yield break;
 
-            using var stream = new FileStream(WALFilePat, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var stream = new FileStream(WALFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var reader = new BinaryReader(stream);
 
             while (stream.Position < stream.Length)
@@ -58,13 +55,13 @@ namespace ServerPMS
             }
         }
 
-        public void Flush()
+        public static void Flush()
         {
             _writer.Flush();
             _stream.SetLength(0);
         }
 
-        public void Dispose()
+        public static void Dispose()
         {
             _writer?.Dispose();
             _stream?.Dispose();

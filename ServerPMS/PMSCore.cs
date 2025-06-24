@@ -1,11 +1,10 @@
 ﻿// PMS Project V1.0
 // LSData - all rights reserved
-// PMS.cs
+// PMSCore.cs
 //
 //
-using System;
+
 using Microsoft.Data.Sqlite;
-using DocumentFormat.OpenXml.Wordprocessing;
 using System.Data.Common;
 
 namespace ServerPMS
@@ -17,25 +16,20 @@ namespace ServerPMS
 
         List<ProductionOrder> ProductionOrdersBuffer;
 
-        private delegate void CDBADelegate(string sql);
-        private delegate Task CDBAAwaitableDelegate(string sql);
-        private delegate Task<string> QDBADataDelegate(string sql);
-        private delegate Task<Dictionary<string,string>> QDBARowDelegate(string sql);
+        public delegate void CDBADelegate(string sql);
+        public delegate Task CDBAAwaitableDelegate(string sql);
+        public delegate Task<string> QDBADataDelegate(string sql);
+        public delegate Task<Dictionary<string,string>> QDBARowDelegate(string sql);
 
         public CommandDBAccessor CmdDBA;
-        CDBADelegate CDBAOperation;
-        CDBAAwaitableDelegate CDBAAwaitableOperation;
+        public CDBADelegate CDBAOperation;
+        public CDBAAwaitableDelegate CDBAAwaitableOperation;
         public QueryDBAccessor QueryDBA;
-        QDBADataDelegate QDBADataOperation;
-        QDBARowDelegate QDBARowOperation;
+        public QDBADataDelegate QDBADataOperation;
+        public QDBARowDelegate QDBARowOperation;
 
         public PMSCore()
         {
-   
-            //initialize WAL
-            WALLogger logger = new WALLogger(GlobalConfigManager.GlobalRAMConfig.WAL.WALFilePath);
-
-
 
             //DB OPERATING ENVIROMENT INITIALIZATION
             #region
@@ -43,12 +37,14 @@ namespace ServerPMS
             using var conn = new SqliteConnection(string.Format("Data Source={0};", GlobalConfigManager.GlobalRAMConfig.Database.FilePath));
             conn.Open();
 
-            //enable WAL mode
+            //enable WAL mode (DB and application-layer)
             using var cmd = new SqliteCommand("PRAGMA journal_mode=WAL;", conn);  //enable Write Ahead Log (WAl) mode
             cmd.ExecuteNonQuery();
+            WALLogger.WALFilePath = GlobalConfigManager.GlobalRAMConfig.WAL.WALFilePath;
+            WALLogger.Start();
 
             //starts DBAs
-            CmdDBA = new CommandDBAccessor(GlobalConfigManager.GlobalRAMConfig.Database.FilePath, logger.Log,logger.Flush);
+            CmdDBA = new CommandDBAccessor(GlobalConfigManager.GlobalRAMConfig.Database.FilePath, WALLogger.Log,WALLogger.Flush);
             QueryDBA = new QueryDBAccessor(GlobalConfigManager.GlobalRAMConfig.Database.FilePath);
 
             //define delegates to encapsulate logging and DB operations -- probabilemente da cambiare
@@ -56,7 +52,7 @@ namespace ServerPMS
             CDBAAwaitableOperation = CmdDBA.EnqueueSql;
 
             QDBADataOperation = async (string sql) => {return await QueryDBA.QueryAsync(sql, (DbDataReader dbdr) => {
-                return dbdr.Read() ? dbdr.GetString(0) : "UNKNOWN";
+                return dbdr.Read() ? dbdr.GetString(0) : "NULL";
             }); };
             QDBARowOperation = async (string sql) => { return await QueryDBA.QueryAsync(sql, (DbDataReader dbdr) =>
             {
@@ -77,7 +73,7 @@ namespace ServerPMS
             //REPLAY WAL IF NEEDED
             #region
             //for each SQL command in WAL
-            foreach (string op in logger.Replay())
+            foreach (string op in WALLogger.Replay())
             {
                 //send command to CDBA and wait for execution 
                 CDBAAwaitableOperation(op).Wait();
@@ -88,6 +84,28 @@ namespace ServerPMS
 
             //ORDER LIST LOADING
             #region
+
+            //DEBUG
+            string filename = "/Users/edoardosanti/Downloads/TEST_IRS_2.xlsx";
+
+
+            OrderManager manager = new OrderManager(CmdDBA, QueryDBA);
+
+            manager.LoadFromExcelFile(filename,
+                new ExcelOrderParserParams(
+                    "CODE",
+                    "DESCRIPTION",
+                    "QUANTITY",
+                    "ORDINE",
+                    "MACCHINA",
+                    "STAMPO",
+                    "P_STAMPO",
+                    "NOTE_STAMPO",
+                    "CLIENTE", "" +
+                    "MAGAZZINO_CONSEGNA",
+                    "DATA_CONSEGNA"
+                    ));
+
 
             ProductionOrdersBuffer = new List<ProductionOrder>();
 
@@ -140,6 +158,7 @@ namespace ServerPMS
                 );
 
             List<ProductionOrder> import = excelParser.ParseOrders();
+            excelParser.Dispose();
 
             if (import.Count > 0)
             {

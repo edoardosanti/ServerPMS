@@ -3,12 +3,13 @@
 // DBAccessor.cs
 //
 //
-using System;
+
 using System.Collections.Concurrent;
 using System.Data.Common;
+using DocumentFormat.OpenXml.Math;
+using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.Data.Sqlite;
-using DocumentFormat.OpenXml.Office2016.Excel;
-using ClosedXML.Excel;
+
 
 namespace ServerPMS
 {
@@ -21,13 +22,23 @@ namespace ServerPMS
         public TaskCompletionSource<T> CompletionSource { get; } = new();
     }
 
-    public class CommandRequest
+    public enum CDBARequestType
+    {
+        SQLCommand,
+        TransactionCommit,
+        TransactionRollback
+    }
+
+    //rapresents a request for command execution
+    public class CDBARequest
     {
         public string Sql { get; set; } = string.Empty;
         public TaskCompletionSource CompletionSource { get; } = new();
+        public Guid? TransactionID { get; set; }
+        public CDBARequestType Type { get; set; }
+       
     }
 
-    
     public class QueryDBAccessor //wait for the query to return
     {
         private string db;
@@ -135,7 +146,7 @@ namespace ServerPMS
     public class CommandDBAccessor : IDisposable //fire and forget scenario
     {
 
-        private readonly BlockingCollection<CommandRequest> sqlQueue = new();
+        private readonly BlockingCollection<CDBARequest> sqlQueue = new();
         private readonly CancellationTokenSource cts = new();
         private Action<string> WALLogFunc;
         private Action WALFlushFunc;
@@ -143,6 +154,8 @@ namespace ServerPMS
 
         private string db;
         private SqliteConnection connection;
+        public Dictionary<Guid,SqliteTransaction> TransactionTable;
+
         public CommandDBAccessor(string sqliteDbFile, Action<string> logFunc = null, Action flushFunc = null)
         {
             db = sqliteDbFile;
@@ -150,6 +163,7 @@ namespace ServerPMS
             connection.Open();
             WALLogFunc = logFunc;
             WALFlushFunc = flushFunc;
+            TransactionTable = new Dictionary<Guid, SqliteTransaction>();
             Task.Run(WorkerLoopAsync);
 
         }
@@ -168,33 +182,107 @@ namespace ServerPMS
             connection.Dispose();
         }
 
+        public Task EnqueueSql(string sql, Guid CDBATransactionIdentifier = null)
+        {
+            WALLogFunc(sql);
+            var request = new CDBARequest { Sql = sql, Type=CDBARequestType.SQLCommand, TransactionID = CDBATransactionIdentifier };
+            sqlQueue.Add(request);
+            return request.CompletionSource.Task;
+        }
 
         public Task EnqueueSql(string sql)
         {
             WALLogFunc(sql);
-            var request = new CommandRequest { Sql = sql };
+            var request = new CDBARequest { Sql = sql, Type = CDBARequestType.SQLCommand, TransactionID = null };
             sqlQueue.Add(request);
             return request.CompletionSource.Task;
+        }
+
+        public Task EnqueueTransactionCommit(Guid CDBATransactionIdentifier)
+        {
+            WALLogFunc(string.Format("#CDBA#CTX:{0}", CDBATransactionIdentifier.ToString()));
+            var request = new CDBARequest { Sql = "", Type = CDBARequestType.TransactionCommit, TransactionID = CDBATransactionIdentifier };
+            sqlQueue.Add(request);
+            return request.CompletionSource.Task;
+        }
+
+        public Task EnqueueTransactionRollback(Guid CDBATransactionIdentifier)
+        {
+            WALLogFunc(string.Format("#CDBA#RTX:{0}", CDBATransactionIdentifier.ToString()));
+            var request = new CDBARequest { Sql = "", Type = CDBARequestType.TransactionRollback, TransactionID = CDBATransactionIdentifier };
+            sqlQueue.Add(request);
+            return request.CompletionSource.Task;
+        }
+
+        public Guid NewTransaction()
+        {
+            Guid guid = Guid.NewGuid();
+            TransactionTable.Add(guid, connection.BeginTransaction());
+            return guid;
         }
 
         private async Task WorkerLoopAsync()
         {
             try
             {
-                foreach (CommandRequest request in sqlQueue.GetConsumingEnumerable(cts.Token))
+                foreach (CDBARequest request in sqlQueue.GetConsumingEnumerable(cts.Token))
                 {
                     try
                     {
-                        using var cmd = connection.CreateCommand();
-                        cmd.CommandText = request.Sql;
-                        //Console.WriteLine("DBA Executing: {0}", cmd.CommandText);
-                        cmd.ExecuteNonQuery();
-                        request.CompletionSource.SetResult();
-                        WALFlushFunc();
+                        switch (request.Type)
+                        {
+
+                            case CDBARequestType.SQLCommand:
+                                //create a sqlite command
+                                using (var cmd = connection.CreateCommand())
+                                {
+                                    cmd.CommandText = request.Sql;
+
+
+                                    //if a transactionID is specified assing the command to the respective SQLite transaction using lookup table 
+                                    if (request.TransactionID.HasValue)
+                                    {
+                                        SqliteTransaction tx = TransactionTable[request.TransactionID.Value];
+                                        cmd.Transaction = tx;
+                                        
+                                    }
+
+                                    //execute command
+                                    cmd.ExecuteNonQuery();
+                                }
+
+                                request.CompletionSource.SetResult();
+                                WALFlushFunc();
+                                break;
+
+                            case CDBARequestType.TransactionCommit:
+                                SqliteTransaction commitTX = TransactionTable[request.TransactionID.Value];
+                                commitTX.Commit();
+                                TransactionTable.Remove(request.TransactionID.Value);
+                                request.CompletionSource.SetResult();
+                                WALFlushFunc();
+                                break;
+
+                            case CDBARequestType.TransactionRollback:
+                                SqliteTransaction rollbackTX = TransactionTable[request.TransactionID.Value];
+                                rollbackTX.Rollback();
+                                TransactionTable.Remove(request.TransactionID.Value);
+                                request.CompletionSource.SetResult();
+                                WALFlushFunc();
+                                break;
+                        }
+
+                      
                     }
                     catch (Exception ex)
                     {
                         request.CompletionSource.SetException(ex);
+                        if(request.TransactionID.HasValue && TransactionTable.TryGetValue(request.TransactionID.Value,out var tx))
+                        {
+                            tx.Rollback();
+                            TransactionTable.Remove(request.TransactionID.Value);
+                            WALFlushFunc();
+                        }
                         Console.WriteLine(ex);
 
                     }

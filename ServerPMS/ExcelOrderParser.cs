@@ -4,7 +4,7 @@
 //
 //
 using ClosedXML.Excel;
-
+using System.Globalization;
 
 namespace ServerPMS
 {
@@ -31,7 +31,7 @@ namespace ServerPMS
         }
     }
 
-    public class ExcelOrderParser
+    public class ExcelOrderParser:IDisposable
     {
 
 
@@ -65,6 +65,12 @@ namespace ServerPMS
             }
         }
 
+        public void Dispose()
+        {
+            workbook.Dispose();
+            
+        }
+
         private void MapHeaders()
         {
             IXLRow headers = wrksheet.Row(1); //1st row have to be headers row
@@ -84,6 +90,8 @@ namespace ServerPMS
 
         public List<ProductionOrder> ParseOrders()
         {
+            Thread.CurrentThread.CurrentCulture = new CultureInfo("it-IT");
+
             int last = wrksheet.LastRowUsed().RowNumber();
             List<ProductionOrder> orders = new List<ProductionOrder>();
 
@@ -92,7 +100,7 @@ namespace ServerPMS
                 DateTime delDate;
                 try
                 {
-                    delDate = DateTime.Parse(row.Cell(headersLocationMap["DeliveryDate"]).GetString());
+                    delDate = row.Cell(headersLocationMap["DeliveryDate"]).GetDateTime();
                 }
                 catch
                 {

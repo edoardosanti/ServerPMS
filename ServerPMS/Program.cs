@@ -13,7 +13,6 @@ namespace ServerPMS
         private static readonly string DB_FILE_NAME = "./data/test2.db";
         private static readonly string ENCRYPTED_CONFIG_FILE_NAME = "./data/pmsconf.enc";
         private static readonly string WAL_FILE_NAME = "./data/wal.walfile";
-
         private static readonly string DB_GEN_SQL = "PRAGMA foreign_keys = off;BEGIN TRANSACTION;CREATE TABLE IF NOT EXISTS prod_orders (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, ID_pms INTEGER NOT NULL UNIQUE, part_code TEXT NOT NULL, part_desc TEXT NOT NULL, qty INTEGER NOT NULL, customer_ord_ref TEXT, default_prod_unit INTEGER, mold_id TEXT NOT NULL, mold_location TEXT NOT NULL, mold_notes TEXT NOT NULL, customer_name TEXT NOT NULL, delivery_facility TEXT NOT NULL, delivery_date TEXT NOT NULL, order_status TEXT NOT NULL);CREATE TABLE IF NOT EXISTS prod_units (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL UNIQUE, type TEXT NOT NULL, status TEXT NOT NULL, notes TEXT, current_production_order INTEGER);CREATE TABLE IF NOT EXISTS settings (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL);CREATE TABLE IF NOT EXISTS units_queues (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, unit_id INTEGER NOT NULL, prod_order_id INTEGER NOT NULL, queue_pos INTEGER NOT NULL);COMMIT TRANSACTION;PRAGMA foreign_keys = on;";
 
         public class PMSDefaultConfig : PMSConfig
@@ -41,13 +40,13 @@ namespace ServerPMS
             //check if pms configuration (pmsconf.enc) file exits if not create it 
             CheckLoadPMSConfigurationFile();
 
-            //DEBUG
-            string filename = "/Users/edoardosanti/Downloads/TEST_IRS_2.xlsx";
+            
+
+
+            
 
 
             PMSCore core = new PMSCore();
-
-            core.ImportOrdersFromExcelFile(filename);
 
 
             Console.WriteLine(core.StrDumpBuffer());
@@ -62,6 +61,7 @@ namespace ServerPMS
             if (!File.Exists(DB_FILE_NAME))
             {
                 wasPresentDB = false;
+
                 //create file
                 File.Create(DB_FILE_NAME);
                 using (SqliteConnection c = new SqliteConnection(string.Format("Data Source={0};Mode=ReadWrite;", DB_FILE_NAME)))
@@ -72,7 +72,7 @@ namespace ServerPMS
 
             }
 
-            //check if application-level WAL exists
+            //check if application-level WAL file exists
             if (!File.Exists(WAL_FILE_NAME))
             {
                 File.Create(WAL_FILE_NAME);
@@ -89,13 +89,10 @@ namespace ServerPMS
             {
                 wasPresent = false;
 
-                //create file
-                //File.Create(ENCRYPTED_CONFIG_FILE_NAME);
-
                 //serialize a default configuration
                 string json = JsonSerializer.Serialize(new PMSDefaultConfig(), new JsonSerializerOptions { WriteIndented = true }) ;
 
-                //write to encrypted file
+                //create and write to encrypted file
                 ConfigCrypto.EncryptToFile(json, ENCRYPTED_CONFIG_FILE_NAME);
             }
 
@@ -127,7 +124,6 @@ namespace ServerPMS
                         //write keys
                         sw.WriteLine(Convert.ToBase64String(key));
                         sw.WriteLine(Convert.ToBase64String(iv));
-
                     }
                 }
 
