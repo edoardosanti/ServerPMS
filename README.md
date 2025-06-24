@@ -1,7 +1,7 @@
 # ServerPMS
 
 ## TODO List
-- Implementare OrderManager
+- finire implementazione OrderManager (prima implementare OrderBuffer -> SmartConcat)
 - Progettare interprete e gestore clients
 
 
