@@ -1,7 +1,8 @@
 # ServerPMS
 
 ## TODO List
-- finire implementazione OrderManager (prima implementare OrderBuffer -> SmartConcat)
+- finire implementazione UnitsManager (aggiungere event handler sulle unità)
+- implementare IEM
 - Progettare interprete e gestore clients
 
 
