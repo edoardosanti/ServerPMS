@@ -8,6 +8,8 @@ namespace ServerPMS
 {
     public class ProductionOrder:IEquatable<ProductionOrder>,IDBIdentifiable
     {
+        public event EventHandler<OrderState> StateChangedHandler;
+
         public string RuntimeID { private set; get; }
         public int DBId {  set; get; }
 
@@ -205,9 +207,15 @@ namespace ServerPMS
 
         }
 
+        public void OnStateChanged()
+        {
+            StateChangedHandler?.Invoke(this, OrderStatus);
+        }
+
         public void ChangeState(OrderState newState)
         {
             OrderStatus = newState;
+            OnStateChanged();
         }
 
         public override string ToString()

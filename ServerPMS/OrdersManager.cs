@@ -3,23 +3,30 @@
 // OrdersManager.cs
 //
 //
-using System;
 using System.Data.Common;
-using System.Diagnostics.Metrics;
-using System.Runtime.InteropServices;
-using DocumentFormat.OpenXml.Spreadsheet;
+
 
 namespace ServerPMS
 {
     public class OrdersManager
     {
+
+        //DBAs
         CommandDBAccessor CmdDBA;
         QueryDBAccessor QueryDBA;
 
+        //main order buffer
         OrdersBuffer buffer;
-
         public OrdersBuffer OrdersBuffer => buffer;
-        
+
+        //events
+        public event EventHandler<ProductionOrder> OrderAddedHandler;
+        public event EventHandler<ProductionOrder> OrderStateImported;
+        public event EventHandler<ProductionOrder> OrderStateInQueue;
+        public event EventHandler<ProductionOrder> OrderStateInProduction;
+        public event EventHandler<ProductionOrder> OrderStateCompleted;
+        public event EventHandler<ProductionOrder> OrderRemovedHandler;
+
         Dictionary<string, int> indexLookupTable;
 
         public OrdersManager(CommandDBAccessor CDBA, QueryDBAccessor QDBA)
@@ -31,16 +38,82 @@ namespace ServerPMS
 
             buffer = new OrdersBuffer();
             buffer.ItemAddedHandler += (object sender, ProductionOrder order)=> {
+
+                OnOrderAdded(order);
+
+                //reference the method to call when the order state changes
+                order.StateChangedHandler += StateEventDispatcher;
+
+                //add entry on lookup table
                 indexLookupTable.Add(order.RuntimeID, buffer.IndexOf(order));
             };
             buffer.ItemRemovedHandler += (object sender, ProductionOrder order) =>
             {
                 indexLookupTable.Remove(order.RuntimeID);
+                OnOrderRemoved(order);
             };
             
         }
 
-        public void ChangeOrdeState(string runtimeID, OrderState newState)
+
+        //events callers methods
+        private void OnOrderAdded(ProductionOrder order)
+        {
+            OrderAddedHandler?.Invoke(this, order);
+        }
+
+        private void OnStateImported(ProductionOrder order)
+        {
+            OrderStateImported?.Invoke(this, order);
+        }
+
+        private void OnStateInQueue(ProductionOrder order)
+        {
+            OrderStateInQueue?.Invoke(this, order);
+        }
+
+        private void OnStateInProduction(ProductionOrder order)
+        {
+            OrderStateInProduction?.Invoke(this, order);
+        }
+
+        private void OnStateCompleted(ProductionOrder order)
+        {
+            OrderStateCompleted?.Invoke(this, order);
+        }
+
+        private void OnOrderRemoved(ProductionOrder order)
+        {
+            OrderRemovedHandler?.Invoke(this, order);
+        }
+
+        private void StateEventDispatcher(object sender, OrderState state)
+        {
+            //debug
+            Console.WriteLine("Order: {0} | State: {1}", (sender as ProductionOrder).RuntimeID, state.ToString());
+
+            switch (state)
+            {
+                case OrderState.Imported:
+                    OnStateImported(sender as ProductionOrder);
+                    break;
+
+                case OrderState.InQueue:
+                    OnStateInQueue(sender as ProductionOrder);
+                    break;
+
+                case OrderState.InProduction:
+                    OnStateInProduction(sender as ProductionOrder);
+                    break;
+
+                case OrderState.Completed:
+                    OnStateCompleted(sender as ProductionOrder);
+                    break;
+            }
+        }
+
+        //set order state in DB 
+        public void UpdateOrderState(string runtimeID, OrderState newState)
         {
             int dbId, status;
             dbId = GlobalIDsManager.GetOrderDBID(runtimeID);
@@ -50,16 +123,27 @@ namespace ServerPMS
             buffer[indexLookupTable[runtimeID]].ChangeState(newState);
         }
 
-        public bool Remove(Predicate<ProductionOrder> predicate)
+        //remove order from orders buffer, order table and queues (using predicate)
+        public bool RemoveNotEOFOrder(Predicate<ProductionOrder> predicate)
         {
-            GlobalIDsManager.RemoveOrderEntry(buffer.Find(predicate).RuntimeID);
+            ProductionOrder target = buffer.Find(predicate);
+            GlobalIDsManager.RemoveOrderEntry(target.RuntimeID);
+
+            string[] sqls =
+            {
+                string.Format("DELETE FROM prod_orders WHERE ID={0};",GlobalIDsManager.GetOrderDBID(target.RuntimeID)),
+                string.Format("DELETE FROM units_queues WHERE order_id={0};",GlobalIDsManager.GetOrderDBID(target.RuntimeID))
+            };
+
+            CmdDBA.NewTransactionAndCommit(sqls);
             return buffer.Remove(predicate);
         }
 
-        public bool Remove(string runtimeID)
+        //remove order from orders buffer, order table and queues (using runtimeID)
+        public bool RemoveNotEOFOrder(string runtimeID)
         {
             GlobalIDsManager.RemoveOrderEntry(runtimeID);
-            return buffer.Remove(x => x.RuntimeID == runtimeID);
+            return RemoveNotEOFOrder(x => x.RuntimeID == runtimeID);
         }
 
         //load into Buffer orders from DB
@@ -83,7 +167,6 @@ namespace ServerPMS
                         _fromDB.Add(ProductionOrder.FromDump(order));
                     }
                     catch { }
-                   
                 }
                 return _fromDB;
             }

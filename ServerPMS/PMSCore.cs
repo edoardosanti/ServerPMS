@@ -130,17 +130,17 @@ namespace ServerPMS
 
             #region MANAGERS AND IEM ENVIROMENT INITIALIZAION
 
+            //initalize order manager and load orders from DB
             OrdersMgr = new OrdersManager(CmdDBA,QueryDBA);
             OrdersMgr.LoadOrdersFromDB();
-            
 
-            #endregion
-
-            #region PRODUCTION ENVIROMENT INITIALIZATION
-
-            //initialize units and queues
+            //initalize units manager
             Units = new Dictionary<string, ProductionUnit>();
+
+            //initialize queues manager
             QueuesManager QM = new QueuesManager(CmdDBA, QueryDBA);
+
+
 
             //adding units to env
             Console.WriteLine("**INITIALIZING PRODUCTION UNITS**\n");
