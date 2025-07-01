@@ -4,6 +4,7 @@
 //
 //
 using System;
+using DocumentFormat.OpenXml.Drawing.Diagrams;
 
 namespace ServerPMS
 {
@@ -16,18 +17,31 @@ namespace ServerPMS
         public ProductionEnviroment()
         {
             prodUnits = new List<ProductionUnit>();
-
         }
 
-        public int AddUnit(UnitType type, string notes,params ProductionOrder[] orders)
+        public void AllUnitOperation(UnitState newState)
         {
-            prodUnits.Add(new ProductionUnit(type, notes, orders));
-            return prodUnits.Last().ID;
+            prodUnits.ForEach(x =>
+            {
+                if (newState == UnitState.Standby)
+                    x.Stop();
+                else if (newState == UnitState.Running)
+                    x.Start();
+                else
+                    x.ChangeOver();
+            });
+            
+        }
+
+        public int AddUnit(int dbid,UnitType type, string notes,params int[] ordersId)
+        {
+            prodUnits.Add(new ProductionUnit(dbid, type, notes, ordersId));
+            return prodUnits.Last().DBId;
         }
 
         public bool RemoveUnit(int id)
         {
-            return prodUnits.RemoveAll(x => x.ID == id)>0? true:false ;
+            return prodUnits.RemoveAll(x => x.DBId == id)>0? true:false;
         }
     }
 }

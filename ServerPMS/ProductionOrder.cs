@@ -6,7 +6,7 @@ using System.Globalization;
 
 namespace ServerPMS
 {
-    public class ProductionOrder:IEquatable<ProductionOrder>
+    public class ProductionOrder:IEquatable<ProductionOrder>,IDBIdentifiable
     {
         public string RuntimeID { private set; get; }
         public int DBId {  set; get; }
@@ -205,24 +205,14 @@ namespace ServerPMS
 
         }
 
-        public void SetInQueueState()
+        public void ChangeState(OrderState newState)
         {
-            OrderStatus = OrderState.InQueue;
-        }
-
-        public void SetInProductionState()
-        {
-            OrderStatus = OrderState.InProduction;
-        }
-
-        public void SetCompletedState()
-        {
-            OrderStatus = OrderState.Completed;
+            OrderStatus = newState;
         }
 
         public override string ToString()
         {
-            return string.Format("{0}${1}${2}${3}${4}${5}${6}${7}${8}${9}${10}${11}${12}${13}", DBId, RuntimeID, PartCode, PartDescription, Qty, CustomerOrderRef, DefaultProductionUnit, MoldID, MoldLocation, MoldNotes, CustomerName, DeliveryFacility, DeliveryDate,OrderStatus);
+            return string.Format("{0}${1}${2}${3}${4}${5}${6}${7}${8}${9}${10}${11}${12}", DBId, PartCode, PartDescription, Qty, CustomerOrderRef, DefaultProductionUnit, MoldID, MoldLocation, MoldNotes, CustomerName, DeliveryFacility, DeliveryDate,OrderStatus);
         }
 
         public static ProductionOrder FromDump(string dump)
@@ -232,19 +222,19 @@ namespace ServerPMS
             {
                 string[] tmp = dump.Split("$");
                 order = new ProductionOrder(
+                    tmp[1],
                     tmp[2],
-                    tmp[3],
-                    int.Parse(tmp[4]),
-                    tmp[5],
-                    int.Parse(tmp[6]),
+                    int.Parse(tmp[3]),
+                    tmp[4],
+                    int.Parse(tmp[5]),
+                    tmp[6],
                     tmp[7],
                     tmp[8],
                     tmp[9],
                     tmp[10],
                     tmp[11],
-                    tmp[12],
                     int.Parse(tmp[0]),
-                    (OrderState)Enum.Parse(typeof(OrderState), tmp[13])
+                    (OrderState)Enum.Parse(typeof(OrderState), tmp[12])
                     );
                 return order;
             }
@@ -253,12 +243,11 @@ namespace ServerPMS
             
         }
 
-        public bool Equals(ProductionOrder order)
+        public bool Equals(ProductionOrder? order)
         {
-            if (DBId == order.DBId || RuntimeID == order.RuntimeID)
+            if (DBId == order?.DBId || RuntimeID == order?.RuntimeID)
                 return true;
-            else
-                return false;
+            return false;
         }
 
         public string ToInfo()

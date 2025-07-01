@@ -39,7 +39,7 @@ namespace ServerPMS
        
     }
 
-    public class QueryDBAccessor //wait for the query to return
+    public class QueryDBAccessor:IDisposable //wait for the query to return
     {
         private string db;
         private SqliteConnection connection;
@@ -154,7 +154,7 @@ namespace ServerPMS
 
         private string db;
         private SqliteConnection connection;
-        public Dictionary<Guid,SqliteTransaction> TransactionTable;
+        public Dictionary<Guid,SqliteTransaction> TransactionsTable;
 
         public CommandDBAccessor(string sqliteDbFile, Action<string> logFunc = null, Action flushFunc = null)
         {
@@ -163,7 +163,7 @@ namespace ServerPMS
             connection.Open();
             WALLogFunc = logFunc;
             WALFlushFunc = flushFunc;
-            TransactionTable = new Dictionary<Guid, SqliteTransaction>();
+            TransactionsTable = new Dictionary<Guid, SqliteTransaction>();
             Task.Run(WorkerLoopAsync);
 
         }
@@ -214,10 +214,25 @@ namespace ServerPMS
             return request.CompletionSource.Task;
         }
 
+        public Task NewTransactionAndCommit(string[] sqls)
+        {
+            if (sqls != null) {
+                Guid guid = Guid.NewGuid();
+                TransactionsTable.Add(guid, connection.BeginTransaction());
+                foreach(string sql in sqls)
+                {
+                    EnqueueSql(sql, guid);
+                }
+                return EnqueueTransactionCommit(guid);
+            }
+            return null;
+
+        }
+
         public Guid NewTransaction()
         {
             Guid guid = Guid.NewGuid();
-            TransactionTable.Add(guid, connection.BeginTransaction());
+            TransactionsTable.Add(guid, connection.BeginTransaction());
             return guid;
         }
 
@@ -242,11 +257,10 @@ namespace ServerPMS
                                     //if a transactionID is specified assing the command to the respective SQLite transaction using lookup table 
                                     if (request.TransactionID.HasValue)
                                     {
-                                        SqliteTransaction tx = TransactionTable[request.TransactionID.Value];
+                                        SqliteTransaction tx = TransactionsTable[request.TransactionID.Value];
                                         cmd.Transaction = tx;
                                         
                                     }
-
                                     //execute command
                                     cmd.ExecuteNonQuery();
                                 }
@@ -256,17 +270,17 @@ namespace ServerPMS
                                 break;
 
                             case CDBARequestType.TransactionCommit:
-                                SqliteTransaction commitTX = TransactionTable[request.TransactionID.Value];
+                                SqliteTransaction commitTX = TransactionsTable[request.TransactionID.Value];
                                 commitTX.Commit();
-                                TransactionTable.Remove(request.TransactionID.Value);
+                                TransactionsTable.Remove(request.TransactionID.Value);
                                 request.CompletionSource.SetResult();
                                 WALFlushFunc();
                                 break;
 
                             case CDBARequestType.TransactionRollback:
-                                SqliteTransaction rollbackTX = TransactionTable[request.TransactionID.Value];
+                                SqliteTransaction rollbackTX = TransactionsTable[request.TransactionID.Value];
                                 rollbackTX.Rollback();
-                                TransactionTable.Remove(request.TransactionID.Value);
+                                TransactionsTable.Remove(request.TransactionID.Value);
                                 request.CompletionSource.SetResult();
                                 WALFlushFunc();
                                 break;
@@ -277,10 +291,10 @@ namespace ServerPMS
                     catch (Exception ex)
                     {
                         request.CompletionSource.SetException(ex);
-                        if(request.TransactionID.HasValue && TransactionTable.TryGetValue(request.TransactionID.Value,out var tx))
+                        if(request.TransactionID.HasValue && TransactionsTable.TryGetValue(request.TransactionID.Value,out var tx))
                         {
                             tx.Rollback();
-                            TransactionTable.Remove(request.TransactionID.Value);
+                            TransactionsTable.Remove(request.TransactionID.Value);
                             WALFlushFunc();
                         }
                         Console.WriteLine(ex);

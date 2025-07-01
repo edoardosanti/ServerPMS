@@ -37,7 +37,6 @@ namespace ServerPMS
 
                 // Decrypt the configuration file into a JSON string
                 string json = ConfigCrypto.DecryptFromFile(EncryptedConfigPath);
-
                 // Deserialize the JSON into the strongly typed config class
                 GlobalFileConfig = JsonSerializer.Deserialize<PMSConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 //load config to ram

@@ -3,45 +3,48 @@
 // PMSCore.cs
 //
 //
-
-using DocumentFormat.OpenXml.Drawing.Diagrams;
 using Microsoft.Data.Sqlite;
 using System.Data.Common;
+
 
 namespace ServerPMS
 {
     public class PMSCore
     {
-
-        bool RAMOnlyMode=false;
-
-        List<ProductionOrder> ProductionOrdersBuffer;
+        public OrdersManager OrdersMgr;
+        public Dictionary<string, ProductionUnit> Units;
+        public Dictionary<string, ReorderableQueue<string>> Queues;
 
         public delegate void CDBADelegate(string sql);
         public delegate Task CDBAAwaitableDelegate(string sql);
-        public delegate void CDBATransactionOp(Guid id);
-        public delegate Task CDBAAwaitableTransactionOp(Guid id);
+        public delegate void CDBATransactionDelegate(string sql, Guid id);
+        public delegate void CDBATransactionCRDelegate(Guid id);
+        public delegate Task CDBAAwaitableTransactionOpDelegate(Guid id);
+        
         public delegate Task<string> QDBADataDelegate(string sql);
         public delegate Task<Dictionary<string,string>> QDBARowDelegate(string sql);
+        public delegate Task<List<string>> QDBAMultiRowDelegate(string sql);
+
 
         public CommandDBAccessor CmdDBA;
         public CDBADelegate CDBAOperation;
         public CDBAAwaitableDelegate CDBAAwaitableOperation;
-        public CDBATransactionOp CDBACommitOperation;
-        public CDBATransactionOp CDBARollbackOperation;
-        public CDBAAwaitableTransactionOp CDBAAwaitableCommitOperation;
-        public CDBAAwaitableTransactionOp CDBAAwaitableRollbackOperation;
-
+        public CDBATransactionCRDelegate CDBACommitOperation;
+        public CDBATransactionCRDelegate CDBARollbackOperation;
+        public CDBAAwaitableTransactionOpDelegate CDBAAwaitableCommitOperation;
+        public CDBAAwaitableTransactionOpDelegate CDBAAwaitableRollbackOperation;
+        public CDBATransactionDelegate CDBATransactionOperation;
+       
         public QueryDBAccessor QueryDBA;
         public QDBADataDelegate QDBADataOperation;
+        public QDBAMultiRowDelegate QDBAMultiRowOperation;
         public QDBARowDelegate QDBARowOperation;
 
 
         public PMSCore()
         {
 
-            //DB OPERATING ENVIROMENT INITIALIZATION
-            #region
+            #region DB OPERATING ENVIROMENT INITIALIZATION
             //open service connection
             using var conn = new SqliteConnection(string.Format("Data Source={0};", GlobalConfigManager.GlobalRAMConfig.Database.FilePath));
             conn.Open();
@@ -59,6 +62,7 @@ namespace ServerPMS
             //define delegates to encapsulate logging and DB operations -- probabilemente da cambiare
             CDBAOperation = (string sql) => { CmdDBA.EnqueueSql(sql); };
             CDBAAwaitableOperation = CmdDBA.EnqueueSql;
+            CDBATransactionOperation = (string sql, Guid id) => { CmdDBA.EnqueueSql(sql, id); };
             CDBACommitOperation = (Guid id) => { CmdDBA.EnqueueTransactionCommit(id); } ;
             CDBARollbackOperation = (Guid id) => { CmdDBA.EnqueueTransactionRollback(id); };
             CDBAAwaitableCommitOperation = CmdDBA.EnqueueTransactionCommit;
@@ -79,12 +83,29 @@ namespace ServerPMS
                 }
                 return row;
             }); };
+            QDBAMultiRowOperation = async (string sql) =>
+            {
+                return await QueryDBA.QueryAsync(sql, (DbDataReader dbdr) =>
+                {
+
+                    List<string> rows = new();
+
+                    while (dbdr.Read())
+                    {
+                        string order = string.Empty;
+                        for (int i = 0; i < dbdr.FieldCount; i++)
+                        {
+                            order += (dbdr.GetValue(i)?.ToString() ?? "NULL") + "$";
+                        }
+                        rows.Add(order);
+                    }
+
+                    return rows;
+                });
+            };
             #endregion
 
-
-
-            //REPLAY WAL IF NEEDED
-            #region
+            #region REPLAY WAL IF NEEDED
             //for each SQL command in WAL
             foreach (string op in WALLogger.Replay())
             {
@@ -107,68 +128,89 @@ namespace ServerPMS
             }
             #endregion
 
+            #region MANAGERS AND IEM ENVIROMENT INITIALIZAION
 
-
-            //ORDER LIST LOADING
-            #region
-
-            //DEBUG
-            string filename = "/Users/edoardosanti/Downloads/TEST_IRS_2.xlsx";
-
-
-            OrderManager manager = new OrderManager(CmdDBA, QueryDBA);
-
-            manager.LoadFromExcelFile(filename,
-                new ExcelOrderParserParams(
-                    "CODE",
-                    "DESCRIPTION",
-                    "QUANTITY",
-                    "ORDINE",
-                    "MACCHINA",
-                    "STAMPO",
-                    "P_STAMPO",
-                    "NOTE_STAMPO",
-                    "CLIENTE", "" +
-                    "MAGAZZINO_CONSEGNA",
-                    "DATA_CONSEGNA"
-                    ));
-
-
-            ProductionOrdersBuffer = new List<ProductionOrder>();
-
+            OrdersMgr = new OrdersManager(CmdDBA,QueryDBA);
+            OrdersMgr.LoadOrdersFromDB();
+            
 
             #endregion
 
+            #region PRODUCTION ENVIROMENT INITIALIZATION
 
-            //PRODUCTION ENVIROMENT INITIALIZATION
-            #region
-            //initialize prodenv
-            ProductionEnviroment PE = new ProductionEnviroment();
+            //initialize units and queues
+            Units = new Dictionary<string, ProductionUnit>();
+            QueuesManager QM = new QueuesManager(CmdDBA, QueryDBA);
 
-            if (GlobalConfigManager.GlobalRAMConfig.ProdEnv.units == null)
+            //adding units to env
+            Console.WriteLine("**INITIALIZING PRODUCTION UNITS**\n");
+            if (GlobalConfigManager.GlobalRAMConfig.UnitsIDs == null)
                 Console.WriteLine("!!! No Production Units Found !!!");
             else
             {
+                Console.WriteLine("DB_ID\tRUNTIME_ID\t\t\t\tIDENTIFIER\t\tTYPE\t\tNOTES");
+
                 //for each unit conf in unit add unit (info from db record)
-                foreach(ProdUnitConf conf in GlobalConfigManager.GlobalRAMConfig.ProdEnv.units)
+                foreach (int DBId in GlobalConfigManager.GlobalRAMConfig.UnitsIDs)
                 {
-                    string op = string.Format("SELECT * FROM prod_units WHERE ID = {0}", conf.DBId);
-                    Dictionary<string,string> info = QDBARowOperation(op).GetAwaiter().GetResult();
-                    int localId = PE.AddUnit((UnitType)int.Parse(info["type"]),info["notes"]);
-                    //Console.WriteLine(PE.Units.Find(x => x.ID == localId).ToInfo());
+                    //get units info from DB
+                    string op = string.Format("SELECT * FROM prod_units WHERE ID = {0}", DBId);
+                    Dictionary<string, string> info = QDBARowOperation(op).GetAwaiter().GetResult();
+
+                    //generate runtimeID
+                    string runtimeID = Guid.NewGuid().ToString();
+
+                    //add unit to unit list and lookup table
+                    Units.Add(runtimeID, new ProductionUnit(DBId, (UnitType)int.Parse(info["type"]), info["notes"]));
+                    GlobalIDsManager.AddUnitEntry(runtimeID, DBId);
+
+                    //add queue to QueueManager and load queue from DB
+                    QM.NewQueue(runtimeID);
+                    QM.LoadQueue(runtimeID);
+
+                    Console.WriteLine("{0}\t{1}\t{2}\t\t\t{3}\t{4}", DBId, runtimeID, info["name"], ((UnitType)int.Parse(info["type"])).ToString(), info["notes"]);
                 }
             }
+
             #endregion
 
         }
 
-        public bool ImportOrdersFromExcelFile(string filename, ExcelOrderParserParams parserParams=null)
+        
+
+        public string StrDumpBuffer()
         {
-            ExcelOrderParser excelParser;
+            string s = string.Empty;
+            foreach(ProductionOrder order in OrdersMgr.OrdersBuffer)
+            { 
+                s += order.ToInfo() + "\n";
+            }
+            return s;
+        }
+
+        #region UNITS OPERATIONS
+
+        public void StopUnit(string runtimeUnitID)
+        {
+            Units[runtimeUnitID].Stop();
+        }
+
+        #endregion
+
+        #region DATABASE OPERATIONS
+
+        //load into Buffer orders from DB
+
+        #endregion
+
+        #region FILE OPERATIONS
+
+        public void ImportOrdersFromExcelFile(string filename, ExcelOrderParserParams parserParams = null)
+        {
             if (parserParams != null)
-                excelParser = new ExcelOrderParser(filename, parserParams);
+                OrdersMgr.LoadFromExcelFile(filename, parserParams);
             else
-                excelParser = new ExcelOrderParser(filename,
+                OrdersMgr.LoadFromExcelFile(filename,
                 new ExcelOrderParserParams(
                     "CODE",
                     "DESCRIPTION",
@@ -184,37 +226,9 @@ namespace ServerPMS
                     )
                 );
 
-            List<ProductionOrder> import = excelParser.ParseOrders();
-            excelParser.Dispose();
-
-            if (import.Count > 0)
-            {
-                ProductionOrdersBuffer.Concat(import); //TODO: check ìf order already in system
-                return true;
-            }
-            else
-                return false;
         }
 
-        public string StrDumpBuffer()
-        {
-            string s = string.Empty;
-            foreach(ProductionOrder order in ProductionOrdersBuffer)
-            {
-                s += order.ToInfo() + "\n";
-            }
-            return s;
-        }
-
-        public void AddOrder(ProductionOrder order)
-        {
-            ProductionOrdersBuffer.Add(order);
-        }
-
-        public void AddOrder(string partCode, string partDescription, int qty, string customerOrderRef, int defaultProdUnit, string moldID, string moldLocation, string moldNotes, string customerName, string deliveryFacility, string deliveryDate)
-        {
-            ProductionOrdersBuffer.Add(new ProductionOrder(partCode, partDescription, qty, customerOrderRef, defaultProdUnit, moldID, moldLocation, moldNotes, customerName, deliveryFacility, deliveryDate)); ;
-        }
+        #endregion
     }
 }
 

@@ -22,7 +22,7 @@ namespace ServerPMS
                 base.SoftwareDescTable = new SDT { Author = "LS Data", Version = "2.0 Dev", PackageName = "PMS" };
                 base.Database = new SQLiteDatabaseConf { FilePath = DB_FILE_NAME, Timeout = 30 };
                 base.WAL = new WALConf { WALFilePath = WAL_FILE_NAME };
-                base.ProdEnv = new PEConf { units = null };
+                base.UnitsIDs = null;
                 base.Users = new Personnel { users = null };
 
             }
@@ -47,9 +47,7 @@ namespace ServerPMS
 
 
             PMSCore core = new PMSCore();
-
-
-            Console.WriteLine(core.StrDumpBuffer());
+           
             
         }
 

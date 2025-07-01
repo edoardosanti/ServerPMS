@@ -3,12 +3,6 @@
 // PMSSettings.cs
 //
 //
-using System;
-using DocumentFormat.OpenXml.Wordprocessing;
-using System.Text.Json;
-using DocumentFormat.OpenXml.Math;
-using System.Data.Common;
-using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace ServerPMS
 {
@@ -30,16 +24,6 @@ namespace ServerPMS
         public WALConf Clone()
         {
             return new WALConf { WALFilePath = this.WALFilePath};
-        }
-    }
-
-    public class PEConf:ICloneable<PEConf>
-    {
-        public ProdUnitConf[] units { get; set; }
-
-        public PEConf Clone()
-        {
-            return new PEConf { units = this.units?.Clone() as ProdUnitConf[]?? null };
         }
     }
 
@@ -81,7 +65,7 @@ namespace ServerPMS
         public SDT SoftwareDescTable { get; set; }
         public SQLiteDatabaseConf Database { get; set; }
         public WALConf WAL { set; get; }
-        public PEConf ProdEnv {get; set;}
+        public long[] UnitsIDs {get; set;}
         public Personnel Users { get; set; }
 
         public PMSConfig Clone()
@@ -91,11 +75,10 @@ namespace ServerPMS
                 SoftwareDescTable = this.SoftwareDescTable,
                 Database = this.Database.Clone(),
                 WAL = this.WAL.Clone(),
-                ProdEnv = this.ProdEnv.Clone(),
+                UnitsIDs = this.UnitsIDs?.Clone() as long[],
                 Users = this.Users.Clone()
             };
         }
     }
-
 }
 
