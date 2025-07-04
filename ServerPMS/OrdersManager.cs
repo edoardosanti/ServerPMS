@@ -29,6 +29,8 @@ namespace ServerPMS
 
         Dictionary<string, int> indexLookupTable;
 
+        public ProductionOrder this[string runtimeID] => buffer[indexLookupTable[runtimeID]];
+
         public OrdersManager(CommandDBAccessor CDBA, QueryDBAccessor QDBA)
         {
             CmdDBA = CDBA;
@@ -56,7 +58,7 @@ namespace ServerPMS
         }
 
 
-        //events callers methods
+        #region events callers methods
         private void OnOrderAdded(ProductionOrder order)
         {
             OrderAddedHandler?.Invoke(this, order);
@@ -111,6 +113,7 @@ namespace ServerPMS
                     break;
             }
         }
+        #endregion
 
         //set order state in DB 
         public void UpdateOrderState(string runtimeID, OrderState newState)

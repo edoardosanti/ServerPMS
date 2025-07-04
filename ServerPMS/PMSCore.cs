@@ -3,6 +3,7 @@
 // PMSCore.cs
 //
 //
+using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.Data.Sqlite;
 using System.Data.Common;
 
@@ -12,9 +13,13 @@ namespace ServerPMS
     public class PMSCore
     {
         public OrdersManager OrdersMgr;
-        public Dictionary<string, ProductionUnit> Units;
-        public Dictionary<string, ReorderableQueue<string>> Queues;
+        public QueuesManager QueuesMgr;
+        public UnitsManager UnitsMgr;
 
+        public Dictionary<string, ProductionUnit> Units;
+
+
+        #region DBA DELEGATES
         public delegate void CDBADelegate(string sql);
         public delegate Task CDBAAwaitableDelegate(string sql);
         public delegate void CDBATransactionDelegate(string sql, Guid id);
@@ -39,7 +44,7 @@ namespace ServerPMS
         public QDBADataDelegate QDBADataOperation;
         public QDBAMultiRowDelegate QDBAMultiRowOperation;
         public QDBARowDelegate QDBARowOperation;
-
+        #endregion
 
         public PMSCore()
         {
@@ -135,73 +140,28 @@ namespace ServerPMS
             OrdersMgr.LoadOrdersFromDB();
 
             //initalize units manager
-            Units = new Dictionary<string, ProductionUnit>();
+            UnitsMgr = new UnitsManager(CmdDBA, QueryDBA);
+            UnitsMgr.LoadUnits();
 
             //initialize queues manager
-            QueuesManager QM = new QueuesManager(CmdDBA, QueryDBA);
+            QueuesMgr = new QueuesManager(CmdDBA, QueryDBA);
 
-
-
-            //adding units to env
-            Console.WriteLine("**INITIALIZING PRODUCTION UNITS**\n");
-            if (GlobalConfigManager.GlobalRAMConfig.UnitsIDs == null)
-                Console.WriteLine("!!! No Production Units Found !!!");
-            else
+            //add queue to QueueManager and load queue from DB
+            foreach (string runtimeID in UnitsMgr.Units.Keys)
             {
-                Console.WriteLine("DB_ID\tRUNTIME_ID\t\t\t\tIDENTIFIER\t\tTYPE\t\tNOTES");
+                QueuesMgr.NewQueue(runtimeID);
+                QueuesMgr.LoadQueue(runtimeID);
+                //async task-> QueuesMgr.LoadQueueAsync(runtimeID);
 
-                //for each unit conf in unit add unit (info from db record)
-                foreach (int DBId in GlobalConfigManager.GlobalRAMConfig.UnitsIDs)
-                {
-                    //get units info from DB
-                    string op = string.Format("SELECT * FROM prod_units WHERE ID = {0}", DBId);
-                    Dictionary<string, string> info = QDBARowOperation(op).GetAwaiter().GetResult();
-
-                    //generate runtimeID
-                    string runtimeID = Guid.NewGuid().ToString();
-
-                    //add unit to unit list and lookup table
-                    Units.Add(runtimeID, new ProductionUnit(DBId, (UnitType)int.Parse(info["type"]), info["notes"]));
-                    GlobalIDsManager.AddUnitEntry(runtimeID, DBId);
-
-                    //add queue to QueueManager and load queue from DB
-                    QM.NewQueue(runtimeID);
-                    QM.LoadQueue(runtimeID);
-
-                    Console.WriteLine("{0}\t{1}\t{2}\t\t\t{3}\t{4}", DBId, runtimeID, info["name"], ((UnitType)int.Parse(info["type"])).ToString(), info["notes"]);
-                }
+                Console.WriteLine("Queue:\t{0}\t|\tCount:\t{1}\t", runtimeID, QueuesMgr.Queues[runtimeID].Count);
             }
+
+           
 
             #endregion
 
         }
 
-        
-
-        public string StrDumpBuffer()
-        {
-            string s = string.Empty;
-            foreach(ProductionOrder order in OrdersMgr.OrdersBuffer)
-            { 
-                s += order.ToInfo() + "\n";
-            }
-            return s;
-        }
-
-        #region UNITS OPERATIONS
-
-        public void StopUnit(string runtimeUnitID)
-        {
-            Units[runtimeUnitID].Stop();
-        }
-
-        #endregion
-
-        #region DATABASE OPERATIONS
-
-        //load into Buffer orders from DB
-
-        #endregion
 
         #region FILE OPERATIONS
 

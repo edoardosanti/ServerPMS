@@ -7,17 +7,14 @@
 
 namespace ServerPMS
 {
-    public class OrderAddedArgs : EventArgs
-    {
-        public ProductionOrder order;
-        public int index;
-    }
 
     public class OrdersBuffer : SmartBuffer<ProductionOrder>
     {
         public OrdersBuffer() : base() { }
 
-        public override bool SmartAdd(ProductionOrder item)
+        public ProductionOrder this[string runtimeID] { get => Find(x => x.RuntimeID == runtimeID); }
+
+    public override bool SmartAdd(ProductionOrder item)
         {
             GlobalIDsManager.AddOrderEntry(item.RuntimeID, item.DBId);
             return base.SmartAdd(item);

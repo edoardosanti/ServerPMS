@@ -3,12 +3,9 @@
 // QueuesManager.cs
 //
 //
-using System;
-using System.Collections;
-using System.Data;
+using System.ComponentModel;
 using System.Data.Common;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
+using System.Runtime.CompilerServices;
 
 namespace ServerPMS
 {
@@ -19,7 +16,9 @@ namespace ServerPMS
         CommandDBAccessor CmdDBA;
         QueryDBAccessor QueryDBA;
 
-        Dictionary<string, ReorderableQueue<string>> Queues;
+        public event EventHandler<string> ItemEnqueuedHandler;
+
+        public Dictionary<string, ReorderableQueue<string>> Queues;
 
         public QueuesManager(CommandDBAccessor CBDA, QueryDBAccessor QDBA)
         {
@@ -29,18 +28,22 @@ namespace ServerPMS
 
         }
 
+        public ReorderableQueue<string> this[string runtimeID] => Queues[runtimeID];
+
         public void NewQueue(string runtimeID)
         {
             Queues.Add(runtimeID, new ReorderableQueue<string>());
         }
 
-        public void NewQueue(object sender, NewUnitEventArgs args)
+        public void NewQueue(object sender, string runtimeID)
         {
-            Queues.Add(args.RuntimeID, new ReorderableQueue<string>());
+            Queues.Add(runtimeID, new ReorderableQueue<string>());
         }
 
         public Task LoadQueueAsync(string runtimeID)
         {
+
+            //TODO TOFIX  introduces duplicates 
             int dbUnitID = GlobalIDsManager.GetUnitDBID(runtimeID);
 
             string sql = string.Format("SELECT * FROM units_queues WHERE unit_id={0};", dbUnitID);
@@ -71,22 +74,6 @@ namespace ServerPMS
             }
         }
 
-        public void AddToQueue(string orderRuntimeID, string queueRuntimeID)
-        {
-            List<string> transactionSQLs = new List<string>();
-
-            int orderDBID = GlobalIDsManager.GetOrderDBID(orderRuntimeID);
-            int queueBDID = GlobalIDsManager.GetUnitDBID(queueRuntimeID);
-
-            transactionSQLs.Add(string.Format("INSERT INTO units_queues(unit_id, order_id) VALUES({0},{1});", queueBDID, orderDBID));
-            transactionSQLs.Add(string.Format("UPDATE prod_orders SET status = 1 WHERE ID = {0};" ,orderDBID));
-
-            CmdDBA.NewTransactionAndCommit(transactionSQLs.ToArray());
-
-            Queues[queueRuntimeID].Enqueue(orderRuntimeID);
-
-        }
-
         public void RemoveFromQueue(string orderRuntimeID, string queueRuntimeID)
         {
             List<string> transactionSQLs = new List<string>();
@@ -101,6 +88,11 @@ namespace ServerPMS
 
             Queues[queueRuntimeID].Dequeue(orderRuntimeID);
 
+        }
+
+        private void OnItemEnqueued(string queueRuntimeID)
+        {
+            ItemEnqueuedHandler?.Invoke(this, queueRuntimeID); 
         }
 
         //TODO add all queue operations logic (add to queue, remove, move up/down)
