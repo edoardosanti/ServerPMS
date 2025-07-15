@@ -7,8 +7,11 @@
 using System.Collections.Concurrent;
 using System.Data.Common;
 using DocumentFormat.OpenXml.Math;
-using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.Extensions.Logging;
 using Microsoft.Data.Sqlite;
+using DocumentFormat.OpenXml.Office2016.Excel;
+using DocumentFormat.OpenXml.Drawing.Charts;
+using DocumentFormat.OpenXml.Office.Word;
 
 
 namespace ServerPMS
@@ -47,18 +50,26 @@ namespace ServerPMS
         private readonly CancellationTokenSource _cts = new();
         private readonly Task workerTask;
 
+        private bool disposeRequested = false;
+
 
         public QueryDBAccessor(string sqliteDbFile)
         {
+            Loggers.DBAs.LogInformation("QDBA - Starting.");
+
             db = sqliteDbFile;
             connection = new SqliteConnection(string.Format("Data Source={0};Mode=ReadWrite;", db));
             connection.Open();
+
+            Loggers.DBAs.LogInformation("QDBA - Worker loop starting.");
             workerTask = Task.Run(WorkerLoopAsync);
+
         }
 
         // Enqueue a query and get a Task<T> for the result
         public Task<T> QueryAsync<T>(string sql, Func<DbDataReader, T> parser)
         {
+            Loggers.DBAs.LogInformation("QDBA - New query enqueued: {0}",sql);
             var request = new QueryRequest<T> { Sql = sql, Parser = parser };
             _queryQueue.Add(request);
             return request.CompletionSource.Task;
@@ -100,6 +111,7 @@ namespace ServerPMS
         {
             try
             {
+                Loggers.DBAs.LogInformation("QDBA - Executing SQL: {0}", request.Sql);
                 using var cmd = connection.CreateCommand();
                 cmd.CommandText = request.Sql;
                 using var reader = await cmd.ExecuteReaderAsync(_cts.Token);
@@ -117,6 +129,7 @@ namespace ServerPMS
         {
             try
             {
+                Loggers.DBAs.LogInformation("QDBA - Executing SQL: {0}", request.Sql);
                 using var cmd = connection.CreateCommand();
                 cmd.CommandText = request.Sql;
                 using var reader = await cmd.ExecuteReaderAsync(_cts.Token);
@@ -132,6 +145,7 @@ namespace ServerPMS
         // Call this to shutdown gracefully
         public void Dispose()
         {
+            Loggers.DBAs.LogInformation("QDBA - Shutting Down");
             _cts.Cancel();
             _queryQueue.CompleteAdding();
             workerTask.Wait();
@@ -150,7 +164,7 @@ namespace ServerPMS
         private readonly CancellationTokenSource cts = new();
         private Action<string> WALLogFunc;
         private Action WALFlushFunc;
-
+        private readonly Task workerTask;
 
         private string db;
         private SqliteConnection connection;
@@ -158,13 +172,14 @@ namespace ServerPMS
 
         public CommandDBAccessor(string sqliteDbFile, Action<string> logFunc = null, Action flushFunc = null)
         {
+            Loggers.DBAs.LogInformation("CDBA - Starting.");
             db = sqliteDbFile;
             connection = new SqliteConnection(string.Format("Data Source={0};Mode=ReadWrite;", db));
             connection.Open();
             WALLogFunc = logFunc;
             WALFlushFunc = flushFunc;
             TransactionsTable = new Dictionary<Guid, SqliteTransaction>();
-            Task.Run(WorkerLoopAsync);
+            workerTask = Task.Run(WorkerLoopAsync);
 
         }
 
@@ -178,12 +193,15 @@ namespace ServerPMS
         {
             sqlQueue.Dispose();
             cts.Dispose();
+            workerTask.Wait();
             connection.Close();
             connection.Dispose();
         }
 
         public Task EnqueueSql(string sql, Guid CDBATransactionIdentifier)
         {
+            Loggers.DBAs.LogInformation("CDBA - Enqued SQL: {0} TX: {1}", sql,CDBATransactionIdentifier.ToString());
+
             WALLogFunc(sql);
             var request = new CDBARequest { Sql = sql, Type=CDBARequestType.SQLCommand, TransactionID = CDBATransactionIdentifier };
             sqlQueue.Add(request);
@@ -192,6 +210,8 @@ namespace ServerPMS
 
         public Task EnqueueSql(string sql)
         {
+            Loggers.DBAs.LogInformation("CDBA - Enqued SQL: {0}", sql);
+
             WALLogFunc(sql);
             var request = new CDBARequest { Sql = sql, Type = CDBARequestType.SQLCommand, TransactionID = null };
             sqlQueue.Add(request);
@@ -200,6 +220,8 @@ namespace ServerPMS
 
         public Task EnqueueTransactionCommit(Guid CDBATransactionIdentifier)
         {
+            Loggers.DBAs.LogInformation("CDBA - Enqued Commit TX: {0}",CDBATransactionIdentifier.ToString());
+
             WALLogFunc(string.Format("#CDBA#C:{0}", CDBATransactionIdentifier.ToString()));
             var request = new CDBARequest { Sql = "", Type = CDBARequestType.TransactionCommit, TransactionID = CDBATransactionIdentifier };
             sqlQueue.Add(request);
@@ -208,6 +230,8 @@ namespace ServerPMS
 
         public Task EnqueueTransactionRollback(Guid CDBATransactionIdentifier)
         {
+            Loggers.DBAs.LogInformation("CDBA - Enqued Rollback TX: {0}", CDBATransactionIdentifier.ToString());
+
             WALLogFunc(string.Format("#CDBA#R:{0}", CDBATransactionIdentifier.ToString()));
             var request = new CDBARequest { Sql = "", Type = CDBARequestType.TransactionRollback, TransactionID = CDBATransactionIdentifier };
             sqlQueue.Add(request);
@@ -216,6 +240,15 @@ namespace ServerPMS
 
         public Task NewTransactionAndCommit(string[] sqls)
         {
+
+            string tmp = "\n";
+            foreach(string s in sqls)
+            {
+                tmp += s + "\n";
+            }
+            Loggers.DBAs.LogInformation("CDBA - Enqued SQLs in new internal TX: {0}", tmp);
+
+
             if (sqls != null) {
                 Guid guid = Guid.NewGuid();
                 TransactionsTable.Add(guid, connection.BeginTransaction());
@@ -231,6 +264,7 @@ namespace ServerPMS
 
         public Guid NewTransaction()
         {
+            Loggers.DBAs.LogInformation("CDBA - New transaction: {0}");
             Guid guid = Guid.NewGuid();
             TransactionsTable.Add(guid, connection.BeginTransaction());
             return guid;
@@ -262,7 +296,9 @@ namespace ServerPMS
                                         
                                     }
                                     //execute command
+                                    Loggers.DBAs.LogInformation("CDBA - Executing SQL: {0}", cmd.CommandText);
                                     cmd.ExecuteNonQuery();
+
                                 }
 
                                 request.CompletionSource.SetResult();
@@ -270,6 +306,7 @@ namespace ServerPMS
                                 break;
 
                             case CDBARequestType.TransactionCommit:
+                                Loggers.DBAs.LogInformation("CDBA - Executing Commit TX: {0}", request.TransactionID);
                                 SqliteTransaction commitTX = TransactionsTable[request.TransactionID.Value];
                                 commitTX.Commit();
                                 TransactionsTable.Remove(request.TransactionID.Value);
@@ -278,6 +315,7 @@ namespace ServerPMS
                                 break;
 
                             case CDBARequestType.TransactionRollback:
+                                Loggers.DBAs.LogInformation("CDBA - Executing Rollback TX: {0}", request.TransactionID);
                                 SqliteTransaction rollbackTX = TransactionsTable[request.TransactionID.Value];
                                 rollbackTX.Rollback();
                                 TransactionsTable.Remove(request.TransactionID.Value);
@@ -304,6 +342,7 @@ namespace ServerPMS
             }
             catch (OperationCanceledException)
             {
+                Loggers.DBAs.LogInformation("CDBA - Shutting Down.");
                 Dispose();
             }
             catch (Exception ex)

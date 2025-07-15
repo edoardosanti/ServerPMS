@@ -3,12 +3,10 @@
 // UnitsManager.cs
 //
 //
-using System;
+
 using System.Collections;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
-using DocumentFormat.OpenXml.Bibliography;
-using static ServerPMS.PMSCore;
 
 namespace ServerPMS
 {
@@ -21,12 +19,16 @@ namespace ServerPMS
         public Dictionary<string, ProductionUnit> Units;
         CommandDBAccessor CmdDBA;
         QueryDBAccessor QueryDBA;
+        QueuesManager _queueManager;
+
+       
 
         public UnitsManager(CommandDBAccessor CDBA, QueryDBAccessor QDBA)
         {
             Units = new Dictionary<string, ProductionUnit>();
             CmdDBA = CDBA;
             QueryDBA = QDBA;
+            _queueManager = new QueuesManager(CDBA, QDBA);
         }
 
         public void LoadUnits()
@@ -63,6 +65,8 @@ namespace ServerPMS
                     Units.Add(runtimeID, new ProductionUnit(DBId, (UnitType)int.Parse(info["type"]), info["notes"]));
                     OnNewUnit(runtimeID);
                     GlobalIDsManager.AddUnitEntry(runtimeID, DBId);
+                    _queueManager.NewQueue(runtimeID);
+
 
                     //print infos
                     Console.WriteLine("{0}\t{1}\t{2}\t\t\t{3}\t{4}", DBId, runtimeID, info["name"], (UnitType)int.Parse(info["type"]), info["notes"]);
@@ -71,9 +75,19 @@ namespace ServerPMS
 
         }
 
-        void OnNewUnit(string runtimeID)
+        void OnNewUnit(string unitRuntimeID)
         {
-            NewUnitHandler?.Invoke(this, runtimeID);
+            NewUnitHandler?.Invoke(this, unitRuntimeID);
+        }
+
+        public void Start(string unitRuntimeID)
+        {
+            Units[unitRuntimeID].Start();
+        }
+
+        public void Stop(string unitRuntimeID)
+        {
+
         }
 
         #region IDictionary<>

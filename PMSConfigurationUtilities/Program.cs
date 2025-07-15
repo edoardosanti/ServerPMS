@@ -161,6 +161,7 @@ class Program
                     break;
 
                 case "4":
+                    GeneralConfiguration();
                     break;
 
                 case "0":
@@ -264,6 +265,7 @@ class Program
 
 
     }
+
     /// <summary>
     /// Add unit to unit table and return its id
     /// </summary>
@@ -304,5 +306,10 @@ class Program
 
 
         units.Add(DBId);
+    }
+
+    static void GeneralConfiguration()
+    {
+
     }
 }

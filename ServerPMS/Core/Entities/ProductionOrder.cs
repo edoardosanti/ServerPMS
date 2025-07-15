@@ -181,6 +181,24 @@ namespace ServerPMS
 
         public OrderState OrderStatus { private set; get; }
 
+        DateOnly dateAdded;
+        public string DateAdded
+        {
+            private set
+            {
+                try
+                {
+                    string[] formats = { "dd/MM/yyyy", "d/MM/yyyy", "dd/M/yyyy", "d/M/yyyy" };
+                    dateAdded = DateOnly.ParseExact(value, formats, CultureInfo.InvariantCulture);
+                }
+                catch
+                {
+                    throw;
+                }
+            }
+            get { return dateAdded.ToShortDateString(); }
+        }
+
         public ProductionOrder(string partCode, string partDescription, int qty, string customerOrderRef, int defaultProdUnit, string moldID, string moldLocation, string moldNotes, string customerName,string deliveryFacility, string deliveryDate, int DBId=-1, OrderState state=OrderState.Imported)
         {
             try

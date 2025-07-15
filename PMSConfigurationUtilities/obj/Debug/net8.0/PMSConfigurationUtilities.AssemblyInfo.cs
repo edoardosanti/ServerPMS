@@ -13,11 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PMSConfigurationUtilities")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-<<<<<<< HEAD
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+63028e631e16cdfb1c2eb6a514f5488a3bf5d68f")]
-=======
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+414fe6215149b8c7f80d75aa743178b59cd237ac")]
->>>>>>> 8e1defb (added MoveUp() method in RQueue;)
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+eaf61fd723ef47d45809fc20eaedc51548209dae")]
 [assembly: System.Reflection.AssemblyProductAttribute("PMSConfigurationUtilities")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PMSConfigurationUtilities")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

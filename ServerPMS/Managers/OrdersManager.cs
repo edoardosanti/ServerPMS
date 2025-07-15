@@ -4,7 +4,7 @@
 //
 //
 using System.Data.Common;
-
+using Microsoft.Extensions.Logging;
 
 namespace ServerPMS
 {
@@ -54,7 +54,8 @@ namespace ServerPMS
                 indexLookupTable.Remove(order.RuntimeID);
                 OnOrderRemoved(order);
             };
-            
+
+            Loggers.Orders.LogInformation("Orders Manager started.");
         }
 
 
@@ -124,6 +125,8 @@ namespace ServerPMS
             string sql = string.Format("UPDATE prod_orders SET status = {0} WHERE id = {1};", status, dbId);
             CmdDBA.EnqueueSql(sql);
             buffer[indexLookupTable[runtimeID]].ChangeState(newState);
+
+            Loggers.Orders.LogInformation("Order state changed");
         }
 
         //remove order from orders buffer, order table and queues (using predicate)
@@ -177,12 +180,16 @@ namespace ServerPMS
       
             buffer.SmartAdd(fromDB);
 
+            Loggers.Orders.LogInformation("Loaded orders from DB");
+
+           
+
         }
 
         //write order to DB
         private void WriteOrderToDB(ProductionOrder order)
         {
-            string values = string.Format("'{0}','{1}','{2}',{3},'{4}',{5},'{6}','{7}','{8}','{9}','{10}','{11}'",
+            string values = string.Format("'{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}','{8}','{9}','{10}','{11}'",
                 order.PartCode,
                 order.PartDescription,
                 order.Qty,
@@ -195,8 +202,9 @@ namespace ServerPMS
                 order.DeliveryFacility,
                 order.DeliveryDate,
                 (int)order.OrderStatus);
-            string sql = string.Format("INSERT INTO prod_orders(part_code, part_desc, qty, customer_ord_ref, default_prod_unit, mold_id, mold_location, mold_notes, customer_name, delivery_facility, delivery_date, order_status) VALUES({0});", values);
+            string sql = string.Format("INSERT INTO prod_orders(part_code, part_desc, qty, customer_ord_ref, default_prod_unit, mold_id, mold_location, mold_notes, customer_name, delivery_facility, delivery_date, status) VALUES({0});", values);
             CmdDBA.EnqueueSql(sql);
+            Loggers.Orders.LogInformation("Order sent to CDBA for writing.");
         }
 
         //write array of orders to DB

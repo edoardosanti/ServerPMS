@@ -13,5 +13,36 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.6" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.6" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.6" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.6" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.6" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.6" />
+    <PackageReference Include="Serilog" Version="4.3.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.2" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Infrastructure\" />
+    <None Remove="Core\" />
+    <None Remove="Core\Entities\" />
+    <None Remove="Managers\" />
+    <None Remove="Infrastructure\Config\" />
+    <None Remove="Infrastructure\Generic\" />
+    <None Remove="Core\Enums\" />
+    <None Remove="Old\" />
+    <None Remove="Infrastructure\Database\" />
+    <None Remove="Infrastructure\Logging\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Infrastructure\" />
+    <Folder Include="Core\" />
+    <Folder Include="Core\Entities\" />
+    <Folder Include="Managers\" />
+    <Folder Include="Infrastructure\Config\" />
+    <Folder Include="Infrastructure\Generic\" />
+    <Folder Include="Core\Enums\" />
+    <Folder Include="Old\" />
+    <Folder Include="Infrastructure\Database\" />
+    <Folder Include="Infrastructure\Logging\" />
   </ItemGroup>
 </Project>

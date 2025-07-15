@@ -20,6 +20,7 @@ public class RQueueTests
         Assert.IsTrue(RQueue.ElementAt(2) == "2" && RQueue.ElementAt(9) == "9");
     }
 
+    [TestMethod]
     public void DequeueTest()
     {
         for (int i = 0; i < 4; i++)
@@ -27,10 +28,10 @@ public class RQueueTests
             RQueue.Enqueue(i.ToString());
         }
 
-        RQueue.Dequeue("1");
-        RQueue.Dequeue("3");
+        RQueue.Dequeue();
+        RQueue.Dequeue();
 
-        string[] k = { "0", "2", "4" };
+        string[] k = { "2", "3"};
 
         Assert.IsTrue(RQueue.Equals(new ReorderableQueue<string>(k)));
     }
@@ -44,7 +45,7 @@ public class RQueueTests
             RQueue.Enqueue(i.ToString());
         }
 
-        RQueue.MoveUp(x=>x=="2", 5);
+        RQueue.MoveUp("2", 5);
         Assert.IsTrue(RQueue.ElementAt(0) == "2");
     }
 
@@ -56,7 +57,7 @@ public class RQueueTests
             RQueue.Enqueue(i.ToString());
         }
 
-        RQueue.MoveDown(x => x == "8", 5);
+        RQueue.MoveDown("8", 5);
         Assert.IsTrue(RQueue.ElementAt(RQueue.Count-1) == "8");
     }
 
@@ -68,7 +69,7 @@ public class RQueueTests
             RQueue.Enqueue(i.ToString());
         }
 
-        Assert.IsTrue(RQueue.Next == "0");
+        Assert.IsTrue(RQueue.Next == "1");
     }
 
     [TestMethod]
@@ -78,8 +79,8 @@ public class RQueueTests
         {
             RQueue.Enqueue(i.ToString());
         }
-        RQueue.MoveUp(x=>x=="3");
-        RQueue.MoveDown(x=>x=="3");
+        RQueue.MoveUp("3");
+        RQueue.MoveDown("3");
 
         bool isOk = true;
         for (int i = 0; i < 10; i++)
@@ -95,13 +96,13 @@ public class RQueueTests
     }
 
     [TestMethod]
-    public void NextAndDequeueTest()
+    public void DequeueReturnValueTest()
     {
         for (int i = 0; i < 10; i++)
         {
             RQueue.Enqueue(i.ToString());
         }
-        string deq = RQueue.GetNextAndDequeue();
-        Assert.IsTrue(deq=="0"&&RQueue.Next=="1");
+        string deq = RQueue.Dequeue();
+        Assert.IsTrue(deq=="0"&&RQueue.Current=="1"&&RQueue.Next=="2");
     }
 }

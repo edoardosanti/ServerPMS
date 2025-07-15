@@ -6,18 +6,16 @@
 using DocumentFormat.OpenXml.Wordprocessing;
 using Microsoft.Data.Sqlite;
 using System.Data.Common;
+using Microsoft.Extensions.Logging;
 
 
 namespace ServerPMS
 {
     public class PMSCore
     {
-        public OrdersManager OrdersMgr;
-        public QueuesManager QueuesMgr;
-        public UnitsManager UnitsMgr;
-
-        public Dictionary<string, ProductionUnit> Units;
-
+        OrdersManager OrdersMgr;
+        QueuesManager QueuesMgr;
+        UnitsManager UnitsMgr;
 
         #region DBA DELEGATES
         public delegate void CDBADelegate(string sql);
@@ -32,35 +30,45 @@ namespace ServerPMS
 
 
         public CommandDBAccessor CmdDBA;
-        public CDBADelegate CDBAOperation;
-        public CDBAAwaitableDelegate CDBAAwaitableOperation;
-        public CDBATransactionCRDelegate CDBACommitOperation;
-        public CDBATransactionCRDelegate CDBARollbackOperation;
-        public CDBAAwaitableTransactionOpDelegate CDBAAwaitableCommitOperation;
-        public CDBAAwaitableTransactionOpDelegate CDBAAwaitableRollbackOperation;
-        public CDBATransactionDelegate CDBATransactionOperation;
+        CDBADelegate CDBAOperation;
+        CDBAAwaitableDelegate CDBAAwaitableOperation;
+        CDBATransactionCRDelegate CDBACommitOperation;
+        CDBATransactionCRDelegate CDBARollbackOperation;
+        CDBAAwaitableTransactionOpDelegate CDBAAwaitableCommitOperation;
+        CDBAAwaitableTransactionOpDelegate CDBAAwaitableRollbackOperation;
+        CDBATransactionDelegate CDBATransactionOperation;
        
         public QueryDBAccessor QueryDBA;
-        public QDBADataDelegate QDBADataOperation;
-        public QDBAMultiRowDelegate QDBAMultiRowOperation;
-        public QDBARowDelegate QDBARowOperation;
+        QDBADataDelegate QDBADataOperation;
+        QDBAMultiRowDelegate QDBAMultiRowOperation;
+        QDBARowDelegate QDBARowOperation;
         #endregion
 
         public PMSCore()
         {
 
             #region DB OPERATING ENVIROMENT INITIALIZATION
+
             //open service connection
+            Loggers.Core.LogInformation("Opening SQLite service connection");
+
             using var conn = new SqliteConnection(string.Format("Data Source={0};", GlobalConfigManager.GlobalRAMConfig.Database.FilePath));
             conn.Open();
 
             //enable WAL mode (DB and application-layer)
+            Loggers.Core.LogInformation("Enabling SQLite WAL mode");
+
             using var cmd = new SqliteCommand("PRAGMA journal_mode=WAL;", conn);  //enable Write Ahead Log (WAl) mode
             cmd.ExecuteNonQuery();
+
+            Loggers.Core.LogInformation("Enabling Application-Layer WAL mode");
+
             WALLogger.WALFilePath = GlobalConfigManager.GlobalRAMConfig.WAL.WALFilePath;
             WALLogger.Start();
 
             //starts DBAs
+            Loggers.Core.LogInformation("Starting DBAs");
+
             CmdDBA = new CommandDBAccessor(GlobalConfigManager.GlobalRAMConfig.Database.FilePath, WALLogger.Log,WALLogger.Flush);
             QueryDBA = new QueryDBAccessor(GlobalConfigManager.GlobalRAMConfig.Database.FilePath);
 
@@ -111,7 +119,10 @@ namespace ServerPMS
             #endregion
 
             #region REPLAY WAL IF NEEDED
+
             //for each SQL command in WAL
+            Loggers.Core.LogInformation("Replaying WAL if needed.");
+
             foreach (string op in WALLogger.Replay())
             {
                 //send command to CDBA and wait for execution
@@ -136,10 +147,18 @@ namespace ServerPMS
             #region MANAGERS AND IEM ENVIROMENT INITIALIZAION
 
             //initalize order manager and load orders from DB
+            Loggers.Core.LogInformation("Starting managers (Orders, Units, Queues)");
+
             OrdersMgr = new OrdersManager(CmdDBA,QueryDBA);
             OrdersMgr.LoadOrdersFromDB();
 
-            //initalize units manager
+            Console.WriteLine("**IMPORTED ORDERS**");
+            foreach(ProductionOrder order in OrdersMgr.OrdersBuffer)
+            {
+                Console.WriteLine(order.ToShortInfo());
+            }
+
+           //initalize units manager
             UnitsMgr = new UnitsManager(CmdDBA, QueryDBA);
             UnitsMgr.LoadUnits();
 
@@ -153,16 +172,25 @@ namespace ServerPMS
                 QueuesMgr.LoadQueue(runtimeID);
                 //async task-> QueuesMgr.LoadQueueAsync(runtimeID);
 
-                Console.WriteLine("Queue:\t{0}\t|\tCount:\t{1}\t", runtimeID, QueuesMgr.Queues[runtimeID].Count);
+                Console.WriteLine("Queue:\t{0}\t|\tCount:\t{1}\t", runtimeID, QueuesMgr[runtimeID].Count);
             }
 
+            IntegratedEventsManager IEM = new IntegratedEventsManager(
+                OrdersMgr,
+                UnitsMgr,
+                QueuesMgr,
+                CmdDBA,
+                QueryDBA);
+
            
+
 
             #endregion
 
         }
 
-
+        
+        
         #region FILE OPERATIONS
 
         public void ImportOrdersFromExcelFile(string filename, ExcelOrderParserParams parserParams = null)
