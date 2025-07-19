@@ -5,23 +5,29 @@
 //
 
 using System.Text;
+using ServerPMS.Abstractions.Infrastructure.Config;
+using ServerPMS.Abstractions.Infrastructure.Logging;
 
-namespace ServerPMS
+namespace ServerPMS.Infrastructure.Logging
 {
-    public static class WALLogger
+    public class WALLogger : IWALLogger, IDisposable
     {
-        private static BinaryWriter _writer;
-        private static FileStream _stream;
-        public static string WALFilePath { get; set; }
+        private BinaryWriter _writer;
+        private FileStream _stream;
+        public string WALFilePath { get; set; }
+
+        private readonly IGlobalConfigManager GlobalConfig;
 
 
-        public static void Start()
+        public WALLogger(IGlobalConfigManager globalConfig)
         {
+            GlobalConfig = globalConfig;
+            WALFilePath = GlobalConfig.GlobalRAMConfig.WAL.WALFilePath;
             _stream = new FileStream(WALFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
             _writer = new BinaryWriter(_stream);
         }
 
-        public static void Log(string sql)
+        public void Log(string sql)
         {
             var bytes = Encoding.UTF8.GetBytes(sql);
             _writer.Write(bytes.Length);
@@ -29,7 +35,7 @@ namespace ServerPMS
             _writer.Flush(); // ensure it’s on disk
         }
 
-        public static IEnumerable<string> Replay()
+        public IEnumerable<string> Replay()
         {
             if (!File.Exists(WALFilePath)) yield break;
 
@@ -55,13 +61,13 @@ namespace ServerPMS
             }
         }
 
-        public static void Flush()
+        public void Flush()
         {
             _writer.Flush();
             _stream.SetLength(0);
         }
 
-        public static void Dispose()
+        public void Dispose()
         {
             _writer?.Dispose();
             _stream?.Dispose();

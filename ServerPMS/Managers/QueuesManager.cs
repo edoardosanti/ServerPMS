@@ -6,11 +6,15 @@
 
 using System.Data.Common;
 using Microsoft.Extensions.Logging;
+using ServerPMS.Abstractions.Managers;
+using ServerPMS.Infrastructure.Generic;
+using ServerPMS.Infrastructure.Database;
+using ServerPMS.Abstractions.Infrastructure.Database;
 
-namespace ServerPMS
+namespace ServerPMS.Managers
 {
 
-    public class QueuesManager
+    public class QueuesManager : IQueuesManager
     {
         #region Events Handlers
         public event EventHandler<string> ItemEnqueuedHandler;
@@ -20,8 +24,11 @@ namespace ServerPMS
 
         #region Properties
 
-        CommandDBAccessor CmdDBA;
-        QueryDBAccessor QueryDBA;
+        private readonly ICommandDBAccessor CmdDBA;
+        private readonly IQueryDBAccessor QueryDBA;
+        private readonly ILogger<QueuesManager> Logger;
+        private readonly IGlobalIDsManager GlobalIDsManager;
+
         Dictionary<string, ReorderableQueue<string>> Queues;
 
         public ReorderableQueue<string> this[string runtimeID] => Queues[runtimeID];
@@ -30,13 +37,15 @@ namespace ServerPMS
         #endregion
 
         #region Constructors
-        public QueuesManager(CommandDBAccessor CBDA, QueryDBAccessor QDBA)
+        public QueuesManager(ICommandDBAccessor CBDA,IQueryDBAccessor QDBA,ILogger<QueuesManager> logger,IGlobalIDsManager globalIDsManager)
         {
             Queues = new Dictionary<string, ReorderableQueue<string>>();
             CmdDBA = CBDA;
             QueryDBA = QDBA;
+            Logger = logger;
+            GlobalIDsManager = globalIDsManager;
 
-            Loggers.Queues.LogInformation("Queues Manager started.");
+            Logger.LogInformation("Queues Manager started.");
         }
 
         #endregion
@@ -50,7 +59,7 @@ namespace ServerPMS
             {
                 _UpdatePositionDB(orderRuntimeID, (sender as ReorderableQueue<string>).PositionOf(orderRuntimeID));
             };
-            Loggers.Queues.LogInformation("Queue added {0}.",runtimeID);
+            Logger.LogInformation("Queue added {0}.",runtimeID);
 
         }
 
@@ -62,7 +71,7 @@ namespace ServerPMS
 
             string sql = string.Format("SELECT * FROM units_queues WHERE unit_id={0};", dbUnitID);
 
-            Loggers.Queues.LogInformation("Started loading op queue {0}.", runtimeID);
+            Logger.LogInformation("Started loading op queue {0}.", runtimeID);
 
             return QueryDBA.QueryAsync(sql, (DbDataReader dbdr) =>
             {
@@ -89,6 +98,14 @@ namespace ServerPMS
         }
 
         public void LoadAll()
+        {
+            foreach (string key in Queues.Keys)
+            {
+                LoadQueueAsync(key).Wait();
+            }
+        }
+
+        public void LoadAllAsync()
         {
             foreach (string key in Queues.Keys)
             {

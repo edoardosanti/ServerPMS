@@ -3,32 +3,32 @@
 // PMSConfigLoader.cs
 //
 //
-using System;
-using System.Reflection.Emit;
-using DocumentFormat.OpenXml.Wordprocessing;
+
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
-using System.Runtime.CompilerServices;
+using ServerPMS.Abstractions.Infrastructure.Config;
 
-namespace ServerPMS
+namespace ServerPMS.Infrastructure.Config
 {
-    static public class GlobalConfigManager
+    public class GlobalConfigManager : IGlobalConfigManager
     {
-        public static PMSConfig GlobalFileConfig { private set; get; }
-        public static PMSConfig GlobalRAMConfig { set; get; }
+        public PMSConfig GlobalFileConfig { get; private set; }
+        public PMSConfig GlobalRAMConfig { set; get; }
 
-        public static string EncryptedConfigPath { get; set; }
-        public static string KeyFilePath { get; set; }
+        public string EncryptedConfigPath { get; set; }
+        public string KeyFilePath { get; set; }
 
-        static GlobalConfigManager()
+        private readonly IConfigCrypto _configCrypto;
+
+        public GlobalConfigManager(IConfigCrypto configCrypto)
         {
+            _configCrypto = configCrypto;
             GlobalFileConfig = null;
             GlobalRAMConfig = null;
             EncryptedConfigPath = string.Empty;
             KeyFilePath = string.Empty;
         }
 
-        public static void Load()
+        public void Load()
         {
             // Set the encryption key file path for ConfigCrypto
 
@@ -36,7 +36,7 @@ namespace ServerPMS
             {
 
                 // Decrypt the configuration file into a JSON string
-                string json = ConfigCrypto.DecryptFromFile(EncryptedConfigPath);
+                string json = _configCrypto.DecryptFromFile(EncryptedConfigPath);
                 // Deserialize the JSON into the strongly typed config class
                 GlobalFileConfig = JsonSerializer.Deserialize<PMSConfig>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 //load config to ram
@@ -48,13 +48,13 @@ namespace ServerPMS
             }
         }
 
-        public static void DumpRAMConfigToFile()
+        public void DumpRAMConfigToFile()
         {
             //serialize ram configuration
             string json = JsonSerializer.Serialize(GlobalRAMConfig, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
             //write to encrypted file
-            ConfigCrypto.EncryptToFile(json, EncryptedConfigPath);
+            _configCrypto.EncryptToFile(json, EncryptedConfigPath);
 
             //reload file
             Load();

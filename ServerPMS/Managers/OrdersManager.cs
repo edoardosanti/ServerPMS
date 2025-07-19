@@ -5,15 +5,22 @@
 //
 using System.Data.Common;
 using Microsoft.Extensions.Logging;
+using ServerPMS.Abstractions.Managers;
+using ServerPMS.Infrastructure.External;
+using ServerPMS.Infrastructure.Database;
+using ServerPMS.Abstractions.Infrastructure.Database;
 
-namespace ServerPMS
+
+namespace ServerPMS.Managers
 {
-    public class OrdersManager
+    public class OrdersManager : IOrdersManager
     {
 
         //DBAs
-        CommandDBAccessor CmdDBA;
-        QueryDBAccessor QueryDBA;
+        private readonly ICommandDBAccessor CmdDBA;
+        private readonly IQueryDBAccessor QueryDBA;
+        private readonly IGlobalIDsManager GlobalIDsManager;
+        private readonly ILogger<OrdersManager> Logger;
 
         //main order buffer
         OrdersBuffer buffer;
@@ -31,14 +38,16 @@ namespace ServerPMS
 
         public ProductionOrder this[string runtimeID] => buffer[indexLookupTable[runtimeID]];
 
-        public OrdersManager(CommandDBAccessor CDBA, QueryDBAccessor QDBA)
+        public OrdersManager(ICommandDBAccessor CDBA, IQueryDBAccessor QDBA,IGlobalIDsManager globalIDsManager,ILogger<OrdersManager> logger)
         {
             CmdDBA = CDBA;
             QueryDBA = QDBA;
+            GlobalIDsManager = globalIDsManager;
+            Logger = logger;
 
             indexLookupTable = new Dictionary<string, int>();
 
-            buffer = new OrdersBuffer();
+            buffer = new OrdersBuffer(globalIDsManager);
             buffer.ItemAddedHandler += (object sender, ProductionOrder order)=> {
 
                 OnOrderAdded(order);
@@ -55,7 +64,7 @@ namespace ServerPMS
                 OnOrderRemoved(order);
             };
 
-            Loggers.Orders.LogInformation("Orders Manager started.");
+            Logger.LogInformation("Orders Manager started.");
         }
 
 
@@ -126,7 +135,7 @@ namespace ServerPMS
             CmdDBA.EnqueueSql(sql);
             buffer[indexLookupTable[runtimeID]].ChangeState(newState);
 
-            Loggers.Orders.LogInformation("Order state changed");
+            Logger.LogInformation("Order state changed");
         }
 
         //remove order from orders buffer, order table and queues (using predicate)
@@ -180,7 +189,7 @@ namespace ServerPMS
       
             buffer.SmartAdd(fromDB);
 
-            Loggers.Orders.LogInformation("Loaded orders from DB");
+            Logger.LogInformation("Loaded orders from DB");
 
            
 
@@ -204,7 +213,7 @@ namespace ServerPMS
                 (int)order.OrderStatus);
             string sql = string.Format("INSERT INTO prod_orders(part_code, part_desc, qty, customer_ord_ref, default_prod_unit, mold_id, mold_location, mold_notes, customer_name, delivery_facility, delivery_date, status) VALUES({0});", values);
             CmdDBA.EnqueueSql(sql);
-            Loggers.Orders.LogInformation("Order sent to CDBA for writing.");
+            Logger.LogInformation("Order sent to CDBA for writing.");
         }
 
         //write array of orders to DB

@@ -4,11 +4,8 @@
 //
 //
 using System.Collections;
-using System.Collections.ObjectModel;
-using DocumentFormat.OpenXml.Drawing;
 
-
-namespace ServerPMS
+namespace ServerPMS.Infrastructure.Generic
 {
 
     public class ReorderableQueue<T> : IEnumerable<T>, IEquatable<ReorderableQueue<T>>, ICloneable<ReorderableQueue<T>>
@@ -175,6 +172,16 @@ namespace ServerPMS
         public int PositionOf(T item)
         {
             return list.IndexOf(item);
+        }
+
+        public string ToInfo()
+        {
+            string info = string.Empty;
+            foreach(T  item in this)
+            {
+                info += item.ToString();
+            }
+            return info;
         }
 
         #endregion

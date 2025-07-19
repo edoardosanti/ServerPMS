@@ -9,7 +9,7 @@ using System.Data;
 using DocumentFormat.OpenXml.Presentation;
 using DocumentFormat.OpenXml.Spreadsheet;
 
-namespace ServerPMS
+namespace ServerPMS.Infrastructure.Generic
 {
     public class SmartBuffer<T> : IEnumerable<T>,IList<T>
     {

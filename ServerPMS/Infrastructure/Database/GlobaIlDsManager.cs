@@ -3,17 +3,20 @@
 // IDsManager.cs
 //
 //
-namespace ServerPMS
+
+using ServerPMS.Abstractions.Infrastructure.Database;
+
+namespace ServerPMS.Infrastructure.Database
 {
-    public static class GlobalIDsManager
+    public class GlobalIDsManager : IGlobalIDsManager
     {
-         public static Dictionary<string, int> OrdersRTD;
-         public static Dictionary<int, string> OrdersDTR;
+         public Dictionary<string, int> OrdersRTD;
+         public Dictionary<int, string> OrdersDTR;
 
-         public static Dictionary<string, int> UnitsRTD;
-         public static Dictionary<int, string> UnitsDTR;
+         public Dictionary<string, int> UnitsRTD;
+         public Dictionary<int, string> UnitsDTR;
 
-        static GlobalIDsManager()
+        public GlobalIDsManager()
         {
             OrdersRTD = new Dictionary<string, int>();
             OrdersDTR = new Dictionary<int, string>();
@@ -22,7 +25,7 @@ namespace ServerPMS
             UnitsDTR = new Dictionary<int, string>();
         }
 
-        public static bool RemoveOrderEntry(string runtimeID)
+        public bool RemoveOrderEntry(string runtimeID)
         {
             try
             {
@@ -37,7 +40,7 @@ namespace ServerPMS
             }
         }
 
-        public static bool RemoveUnitEntry(string runtimeID)
+        public bool RemoveUnitEntry(string runtimeID)
         {
             try
             {
@@ -52,34 +55,34 @@ namespace ServerPMS
             }
         }
 
-        public static void AddOrderEntry(string runtimeID, int DBID)
+        public void AddOrderEntry(string runtimeID, int DBID)
         {
             OrdersDTR.Add(DBID, runtimeID);
             OrdersRTD.Add(runtimeID, DBID);
         }
 
-        public static void AddUnitEntry(string runtimeID, int DBID)
+        public void AddUnitEntry(string runtimeID, int DBID)
         {
             UnitsDTR.Add(DBID, runtimeID);
             UnitsRTD.Add(runtimeID, DBID);
         }
 
-        public static int GetOrderDBID(string runtimeID)
+        public int GetOrderDBID(string runtimeID)
         {
             return OrdersRTD[runtimeID];
         }
 
-        public static string GetOrderRuntimeID(int DBId)
+        public string GetOrderRuntimeID(int DBId)
         {
             return OrdersDTR[DBId];
         }
 
-        public static int GetUnitDBID(string runtimeID)
+        public int GetUnitDBID(string runtimeID)
         {
             return UnitsRTD[runtimeID];
         }
 
-        public static string GetUnitRuntimeID(int DBId)
+        public string GetUnitRuntimeID(int DBId)
         {
             return UnitsDTR[DBId];
         }

@@ -101,31 +101,35 @@
             },
             "Microsoft.Data.Sqlite": {
               "target": "Package",
-              "version": "[9.0.6, )"
+              "version": "[9.0.7, )"
             },
             "Microsoft.Extensions.Configuration": {
               "target": "Package",
-              "version": "[9.0.6, )"
+              "version": "[9.0.7, )"
             },
             "Microsoft.Extensions.Configuration.Abstractions": {
               "target": "Package",
-              "version": "[9.0.6, )"
+              "version": "[9.0.7, )"
             },
             "Microsoft.Extensions.Configuration.Json": {
               "target": "Package",
-              "version": "[9.0.6, )"
+              "version": "[9.0.7, )"
+            },
+            "Microsoft.Extensions.Hosting": {
+              "target": "Package",
+              "version": "[9.0.7, )"
             },
             "Microsoft.Extensions.Logging": {
               "target": "Package",
-              "version": "[9.0.6, )"
+              "version": "[9.0.7, )"
             },
             "Microsoft.Extensions.Logging.Abstractions": {
               "target": "Package",
-              "version": "[9.0.6, )"
+              "version": "[9.0.7, )"
             },
             "Microsoft.Extensions.Logging.Console": {
               "target": "Package",
-              "version": "[9.0.6, )"
+              "version": "[9.0.7, )"
             },
             "Serilog": {
               "target": "Package",

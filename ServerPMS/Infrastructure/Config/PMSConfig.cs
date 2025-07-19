@@ -3,8 +3,9 @@
 // PMSSettings.cs
 //
 //
+using ServerPMS.Infrastructure.Generic;
 
-namespace ServerPMS
+namespace ServerPMS.Infrastructure.Config
 {
     public class SQLiteDatabaseConf:ICloneable<SQLiteDatabaseConf>
     {

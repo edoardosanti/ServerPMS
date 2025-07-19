@@ -7,41 +7,55 @@
 using System.Collections;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
+using ServerPMS.Infrastructure.Database;
+using ServerPMS.Abstractions.Managers;
+using ServerPMS.Abstractions.Infrastructure.Config;
+using ServerPMS.Abstractions.Infrastructure.Database;
 
-namespace ServerPMS
+namespace ServerPMS.Managers
 {
     
-    public class UnitsManager : IDictionary<string, ProductionUnit>
+    public class UnitsManager : IUnitsManager, IDictionary<string, ProductionUnit>
     {
 
         public event EventHandler<string> NewUnitHandler;
 
-        public Dictionary<string, ProductionUnit> Units;
-        CommandDBAccessor CmdDBA;
-        QueryDBAccessor QueryDBA;
-        QueuesManager _queueManager;
+        Dictionary<string, ProductionUnit> units;
+        public Dictionary<string, ProductionUnit> Units => units;
+        
+        private readonly ICommandDBAccessor CmdDBA;
+        private readonly IQueryDBAccessor QueryDBA;
+        private readonly IQueuesManager QueueMgr;
+        private readonly IGlobalConfigManager GlobalConfig;
+        private readonly IGlobalIDsManager GlobalIDsManager;
 
-       
 
-        public UnitsManager(CommandDBAccessor CDBA, QueryDBAccessor QDBA)
+        public UnitsManager(
+            ICommandDBAccessor CDBA, IQueryDBAccessor QDBA,IGlobalIDsManager globalIDManager,
+            IQueuesManager queuesManager,
+            IGlobalConfigManager globalConfig
+            )
         {
-            Units = new Dictionary<string, ProductionUnit>();
+            units = new Dictionary<string, ProductionUnit>();
             CmdDBA = CDBA;
             QueryDBA = QDBA;
-            _queueManager = new QueuesManager(CDBA, QDBA);
+            QueueMgr = queuesManager;
+            GlobalConfig = globalConfig;
+            GlobalIDsManager = globalIDManager;
+
         }
 
         public void LoadUnits()
         {
 
             Console.WriteLine("**INITIALIZING PRODUCTION Units**\n");
-            if (GlobalConfigManager.GlobalRAMConfig.UnitsIDs == null)
+            if (GlobalConfig.GlobalRAMConfig.UnitsIDs == null)
                 Console.WriteLine("!!! No Production Units Found !!!");
             else
             {
                 Console.WriteLine("DB_ID\tRUNTIME_ID\t\t\t\tIDENTIFIER\t\tTYPE\t\tNOTES");
                 //for each unit conf in unit add unit (info from db record)
-                foreach (int DBId in GlobalConfigManager.GlobalRAMConfig.UnitsIDs)
+                foreach (int DBId in GlobalConfig.GlobalRAMConfig.UnitsIDs)
                 {
                     string op = string.Format("SELECT * FROM prod_Units WHERE ID = {0}", DBId);
                     Dictionary<string, string> info = QueryDBA.QueryAsync(op, (DbDataReader dbdr) =>
@@ -62,10 +76,10 @@ namespace ServerPMS
                     string runtimeID = Guid.NewGuid().ToString();
 
                     //add unit to unit list and lookup table
-                    Units.Add(runtimeID, new ProductionUnit(DBId, (UnitType)int.Parse(info["type"]), info["notes"]));
+                    units.Add(runtimeID, new ProductionUnit(DBId, (UnitType)int.Parse(info["type"]), info["notes"]));
                     OnNewUnit(runtimeID);
                     GlobalIDsManager.AddUnitEntry(runtimeID, DBId);
-                    _queueManager.NewQueue(runtimeID);
+                    QueueMgr.NewQueue(runtimeID);
 
 
                     //print infos
@@ -82,7 +96,7 @@ namespace ServerPMS
 
         public void Start(string unitRuntimeID)
         {
-            Units[unitRuntimeID].Start();
+            units[unitRuntimeID].Start();
         }
 
         public void Stop(string unitRuntimeID)
