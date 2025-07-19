@@ -1,25 +1,27 @@
 ﻿// PMS Project V1.0
 // LSData - all rights reserved
-// InegratedEventManager.cs
+// IntegratedEventManager.cs
 //
 //
-using System;
-using DocumentFormat.OpenXml.Office2010.Excel;
-using System.Net.NetworkInformation;
+using ServerPMS.Infrastructure.Database;
+using ServerPMS.Abstractions.Managers;
+using ServerPMS.Abstractions.Infrastructure.Database;
 
-namespace ServerPMS
+namespace ServerPMS.Managers
 {
-    public class IntegratedEventsManager
+
+    public class IntegratedEventsManager : IIntegratedEventsManager
     {
-        OrdersManager OrdersMgr;
-        UnitsManager UnitsMgr;
-        QueuesManager QueuesMgr;
+        private readonly IOrdersManager OrdersMgr;
+        private readonly IUnitsManager UnitsMgr;
+        private readonly IQueuesManager QueuesMgr;
 
-        CommandDBAccessor CmdDBA;
-        QueryDBAccessor QueryDBA;
+        private readonly ICommandDBAccessor CmdDBA;
+        private readonly IQueryDBAccessor QueryDBA;
+        private readonly IGlobalIDsManager GlobalIDsManager;
 
 
-        public IntegratedEventsManager(OrdersManager ordersMgr, UnitsManager unitsMgr, QueuesManager queuesMgr, CommandDBAccessor CDBA, QueryDBAccessor QDBA)
+        public IntegratedEventsManager(IOrdersManager ordersMgr, IUnitsManager unitsMgr, IQueuesManager queuesMgr, ICommandDBAccessor CDBA, IQueryDBAccessor QDBA, IGlobalIDsManager globalIDsManager)
         {
             OrdersMgr = ordersMgr;
             UnitsMgr = unitsMgr;
@@ -27,6 +29,7 @@ namespace ServerPMS
 
             CmdDBA = CDBA;
             QueryDBA = QDBA;
+            GlobalIDsManager = globalIDsManager;
 
         }
 
@@ -34,7 +37,7 @@ namespace ServerPMS
         #region Queues Operations
 
         public void Enqueue(string queueRuntimeID, string orderRuntimeID)
-        { 
+        {
             //retrieve DB IDs
 
             int[] DBIds = { GlobalIDsManager.GetUnitDBID(queueRuntimeID), GlobalIDsManager.GetOrderDBID(orderRuntimeID) };
@@ -44,12 +47,12 @@ namespace ServerPMS
 
             string[] sqls =
             {
-                string.Format("UPDATE prod_orders SET status = {0} WHERE ID = {1};",(int)OrderState.InQueue,DBIds[1]),
-                string.Format(
-                    "INSERT INTO units_queues (unit_id, order_id, position) " +
-                    "VALUES ({0}, {1}, COALESCE((SELECT MAX(position) FROM units_queues WHERE unit_id = {0}), -1) + 1);",
-                    DBIds[0],DBIds[1]),
-            };
+            string.Format("UPDATE prod_orders SET status = {0} WHERE ID = {1};",(int)OrderState.InQueue,DBIds[1]),
+            string.Format(
+                "INSERT INTO units_queues (unit_id, order_id, position) " +
+                "VALUES ({0}, {1}, COALESCE((SELECT MAX(position) FROM units_queues WHERE unit_id = {0}), -1) + 1);",
+                DBIds[0],DBIds[1]),
+        };
 
             //create and commit transaction
             CmdDBA.NewTransactionAndCommit(sqls);
@@ -61,7 +64,7 @@ namespace ServerPMS
             QueuesMgr[queueRuntimeID].Enqueue(orderRuntimeID);
         }
 
-        public void MoveUpInQueue(string queueRuntimeID, string orderRuntimeID, int steps=1)
+        public void MoveUpInQueue(string queueRuntimeID, string orderRuntimeID, int steps = 1)
         {
             QueuesMgr[queueRuntimeID].MoveUp(orderRuntimeID, steps);
         }
@@ -86,9 +89,9 @@ namespace ServerPMS
 
             string[] transactionSQLs =
             {
-                string.Format("DELETE FROM units_queues WHERE unit_id = {0} AND order_id = {1}", queueBDID, orderDBID),
-                string.Format("UPDATE prod_orders SET status = 3 WHERE ID = {0};", orderDBID)
-            };
+            string.Format("DELETE FROM units_queues WHERE unit_id = {0} AND order_id = {1}", queueBDID, orderDBID),
+            string.Format("UPDATE prod_orders SET status = 3 WHERE ID = {0};", orderDBID)
+        };
 
             //commit transaction
             CmdDBA.NewTransactionAndCommit(transactionSQLs);
@@ -105,7 +108,7 @@ namespace ServerPMS
 
         public string FindInQueue(string orderRuntimeID)
         {
-            foreach(string id in QueuesMgr.IDs)
+            foreach (string id in QueuesMgr.IDs)
             {
                 if (QueuesMgr[id].Contains(orderRuntimeID))
                     return id;
@@ -122,8 +125,8 @@ namespace ServerPMS
 
             string[] transactionSQLs =
             {
-                string.Format("DELETE FROM units_queues WHERE unit_id = {0} AND order_id = {1}", queueBDID, orderDBID),
-                string.Format("UPDATE prod_orders SET status = 0 WHERE ID = {0};", orderDBID)
+            string.Format("DELETE FROM units_queues WHERE unit_id = {0} AND order_id = {1}", queueBDID, orderDBID),
+            string.Format("UPDATE prod_orders SET status = 0 WHERE ID = {0};", orderDBID)
             };
 
             //commit transaction
@@ -134,5 +137,5 @@ namespace ServerPMS
 
         #endregion
     }
-}
 
+}

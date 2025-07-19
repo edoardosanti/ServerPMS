@@ -9,40 +9,59 @@
 
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.0" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.6" />
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.6" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.6" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.6" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.6" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.6" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.6" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.7" />
     <PackageReference Include="Serilog" Version="4.3.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.2" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.7" />
   </ItemGroup>
   <ItemGroup>
     <None Remove="Infrastructure\" />
     <None Remove="Core\" />
     <None Remove="Core\Entities\" />
-    <None Remove="Managers\" />
     <None Remove="Infrastructure\Config\" />
     <None Remove="Infrastructure\Generic\" />
     <None Remove="Core\Enums\" />
     <None Remove="Old\" />
     <None Remove="Infrastructure\Database\" />
     <None Remove="Infrastructure\Logging\" />
+    <None Remove="Managers\" />
+    <None Remove="Abstractions\" />
+    <None Remove="Infrastructure\External\" />
+    <None Remove="Abstractions\Core\" />
+    <None Remove="Abstractions\Infrastructure\" />
+    <None Remove="Abstractions\Infrastructure\Database\" />
+    <None Remove="Abstractions\Infrastructure\Config\" />
+    <None Remove="Abstractions\Infrastructure\External\" />
+    <None Remove="Abstractions\Infrastructure\Logging\" />
+    <None Remove="Abstractions\Managers\" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Infrastructure\" />
     <Folder Include="Core\" />
     <Folder Include="Core\Entities\" />
-    <Folder Include="Managers\" />
     <Folder Include="Infrastructure\Config\" />
     <Folder Include="Infrastructure\Generic\" />
     <Folder Include="Core\Enums\" />
     <Folder Include="Old\" />
     <Folder Include="Infrastructure\Database\" />
     <Folder Include="Infrastructure\Logging\" />
+    <Folder Include="Managers\" />
+    <Folder Include="Abstractions\" />
+    <Folder Include="Infrastructure\External\" />
+    <Folder Include="Abstractions\Core\" />
+    <Folder Include="Abstractions\Infrastructure\" />
+    <Folder Include="Abstractions\Infrastructure\Database\" />
+    <Folder Include="Abstractions\Infrastructure\Config\" />
+    <Folder Include="Abstractions\Infrastructure\External\" />
+    <Folder Include="Abstractions\Infrastructure\Logging\" />
+    <Folder Include="Abstractions\Managers\" />
   </ItemGroup>
 </Project>

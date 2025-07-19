@@ -5,21 +5,21 @@
 using System;
 using System.Text;
 using System.Security.Cryptography;
-using DocumentFormat.OpenXml.Presentation;
+using ServerPMS.Abstractions.Infrastructure.Config;
 
-namespace ServerPMS
+namespace ServerPMS.Infrastructure.Config
 {
 
-    public static class ConfigCrypto
+    public class ConfigCrypto: IConfigCrypto
     {
-        public static string EnvFilePath { get; set; }
+        public string EnvFilePath { get; set; }
 
-        private static byte[] Key;
-        private static byte[] IV;
+        private byte[] Key;
+        private byte[] IV;
 
-        private static bool isKeyParsed = false;
+        private bool isKeyParsed = false;
 
-        private static void ParseKey(string envPath)
+        private void ParseKey(string envPath)
         {
             if (!isKeyParsed)
             {
@@ -30,7 +30,7 @@ namespace ServerPMS
             }
         }
 
-        public static void EncryptToFile(string msg, string outputPath)
+        public void EncryptToFile(string msg, string outputPath)
         {
             ParseKey(EnvFilePath);
             var plainBytes = Encoding.UTF8.GetBytes(msg);
@@ -44,7 +44,7 @@ namespace ServerPMS
             File.WriteAllBytes(outputPath, cipher);
         }
 
-        public static string DecryptFromFile(string inputPath)
+        public string DecryptFromFile(string inputPath)
         {
             ParseKey(EnvFilePath);
             var cipherBytes = File.ReadAllBytes(inputPath);

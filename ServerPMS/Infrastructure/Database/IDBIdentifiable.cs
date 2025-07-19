@@ -3,10 +3,7 @@
 // IDBIdentifiable.cs
 //
 //
-using System;
-using DocumentFormat.OpenXml.Wordprocessing;
-
-namespace ServerPMS
+namespace ServerPMS.Infrastructure.Database
 {
     public interface IDBIdentifiable
     {

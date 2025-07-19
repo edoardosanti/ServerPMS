@@ -4,7 +4,7 @@
 //
 //
 using System;
-namespace ServerPMS
+namespace ServerPMS.Infrastructure.Generic
 {
     public interface ICloneable<T>
     {
