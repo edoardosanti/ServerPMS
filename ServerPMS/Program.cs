@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography.X509Certificates;
 using Serilog;
 using Serilog.Extensions.Logging;
 using Serilog.Filters;
@@ -10,12 +11,14 @@ using ServerPMS.Abstractions.Infrastructure.Config;
 using ServerPMS.Abstractions.Infrastructure.Database;
 using ServerPMS.Abstractions.Infrastructure.External;
 using ServerPMS.Abstractions.Infrastructure.Logging;
+using ServerPMS.Abstractions.Infrastructure.ClientCommunication;
 using ServerPMS.Abstractions.Managers;
 using ServerPMS.Core;
 using ServerPMS.Infrastructure.Config;
 using ServerPMS.Infrastructure.Database;
 using ServerPMS.Infrastructure.External;
 using ServerPMS.Infrastructure.Logging;
+using ServerPMS.Infrastructure.ClientCommunication;
 using ServerPMS.Managers;
 
 namespace ServerPMS
@@ -105,6 +108,12 @@ namespace ServerPMS
 
                 //register external services
                 builder.Services.AddTransient<IExcelOrderParser, ExcelOrderParser>();
+
+                //registere client communication services
+                builder.Services.AddTransient<IClientHandler, SSLClientHandler>();
+                builder.Services.AddSingleton<ICommandRouter, CommandRouter>();
+                builder.Services.AddTransient<IMessageFactory, MessageFactory>();
+                builder.Services.AddSingleton(new X509Certificate2("data/dev.pfx", "devenv"));
                 #endregion
 
                 #region MANAGERS

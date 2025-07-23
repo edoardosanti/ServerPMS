@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PMSConfigurationUtilities")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+40fe01cc562554d6a1822364f899022bb148ec76")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+77df0ad3a3952d3cc31427858d0bc701e7eaee3a")]
 [assembly: System.Reflection.AssemblyProductAttribute("PMSConfigurationUtilities")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PMSConfigurationUtilities")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -42,6 +42,8 @@
     <None Remove="Abstractions\Infrastructure\External\" />
     <None Remove="Abstractions\Infrastructure\Logging\" />
     <None Remove="Abstractions\Managers\" />
+    <None Remove="Infrastructure\ClientCommunication\" />
+    <None Remove="Abstractions\Infrastructure\ClientCommunication\" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Infrastructure\" />
@@ -63,5 +65,7 @@
     <Folder Include="Abstractions\Infrastructure\External\" />
     <Folder Include="Abstractions\Infrastructure\Logging\" />
     <Folder Include="Abstractions\Managers\" />
+    <Folder Include="Infrastructure\ClientCommunication\" />
+    <Folder Include="Abstractions\Infrastructure\ClientCommunication\" />
   </ItemGroup>
 </Project>
