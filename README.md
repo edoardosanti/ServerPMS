@@ -1,9 +1,12 @@
 # ServerPMS
 
 ## TODO List
-- finire implementazione UnitsManager (aggiungere event handler sulle unità)
-- implementare IEM
-- Progettare interprete e gestore clients
+#### In ordine di priorità partnedo dall'alto
+
+- ottimizzare architettura comunicazione
+- introdurre logica di riconnessione e dynamic connection switching
+- ottimizzare protocollo
+- finire implementazione UnitsManager (aggiungere statistiche attrezzaggio)
 
 
 ## Workflow da seguire
