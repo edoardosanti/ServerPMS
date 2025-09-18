@@ -3,10 +3,10 @@
 ## TODO List
 #### In ordine di priorità partnedo dall'alto
 
-- ottimizzare architettura comunicazione
-- introdurre logica di riconnessione e dynamic connection switching
-- ottimizzare protocollo
-- finire implementazione UnitsManager (aggiungere statistiche attrezzaggio)
+- implementare operazioni non bloccanti command router
+- implementare feed manager 
+- indicizzazione schede stampo
+- UnitsManager aggiungere statistiche attrezzaggio
 
 
 ## Workflow da seguire
