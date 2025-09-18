@@ -1,9 +1,12 @@
 # ServerPMS
 
 ## TODO List
-- finire implementazione UnitsManager (aggiungere event handler sulle unità)
-- implementare IEM
-- Progettare interprete e gestore clients
+#### In ordine di priorità partnedo dall'alto
+
+- implementare operazioni non bloccanti command router
+- implementare feed manager 
+- indicizzazione schede stampo
+- UnitsManager aggiungere statistiche attrezzaggio
 
 
 ## Workflow da seguire
