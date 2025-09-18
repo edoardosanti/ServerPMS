@@ -3,9 +3,9 @@ namespace ServerPMS.Infrastructure.ClientCommunication
 {
 	public record CArray
 	{
-		public TcpClient cts;
-		public TcpClient stc;
-		public TcpClient bkp;
+		public TcpClient req;
+		public TcpClient feed;
+		public TcpClient sys;
 	}
 }
 

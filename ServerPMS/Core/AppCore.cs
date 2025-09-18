@@ -7,12 +7,12 @@
 using Microsoft.Data.Sqlite;
 using System.Data.Common;
 using Microsoft.Extensions.Logging;
-
 using ServerPMS.Abstractions.Infrastructure.Database;
 using ServerPMS.Abstractions.Infrastructure.Logging;
 using ServerPMS.Abstractions.Infrastructure.Config;
 using ServerPMS.Abstractions.Managers;
 using ServerPMS.Abstractions.Core;
+using ServerPMS.Managers;
 
 namespace ServerPMS.Core
 {
@@ -25,12 +25,18 @@ namespace ServerPMS.Core
         private readonly IOrdersManager OrdersMgr;
         private readonly IQueuesManager QueuesMgr;
         private readonly IUnitsManager UnitsMgr;
-        private readonly IIntegratedEventsManager IEM;
+        private readonly IIntegratedEventsManager _IEM;
 
         private readonly ILogger<AppCore> Logger;
         private readonly IWALLogger WAL;
 
         private readonly IGlobalConfigManager GlobalConfig;
+
+        public IIntegratedEventsManager IEM => _IEM;
+        public IOrdersManager OrdersManager => OrdersMgr;
+        public IUnitsManager UnitsManger => UnitsMgr;
+        public IQueuesManager QueuesManager => QueuesMgr;
+        
 
         #region DBA DELEGATES
         public delegate void CDBADelegate(string sql);
@@ -62,7 +68,6 @@ namespace ServerPMS.Core
             IIntegratedEventsManager integratedEventsManager,
             ILogger<AppCore> logger, IWALLogger WALLogger,
             IGlobalConfigManager globalConfigManager
-
             )
         {
 
@@ -74,7 +79,7 @@ namespace ServerPMS.Core
             OrdersMgr = ordersManager;
             QueuesMgr = queuesManager;
             UnitsMgr = unitsManager;
-            IEM = integratedEventsManager;
+            _IEM = integratedEventsManager;
 
             GlobalConfig = globalConfigManager;
 
@@ -130,34 +135,38 @@ namespace ServerPMS.Core
             };
             #endregion
 
-            #region Initialize managers
+        }
 
+        #region Initialize managers
+
+        public async Task InitializeManagersAsync()
+        {
             //initalize order manager and load orders from DB
             Logger.LogInformation("Starting managers (Orders, Units, Queues)");
 
-            OrdersMgr.LoadOrdersFromDB();
+            await OrdersMgr.LoadOrdersFromDBAsync();
 
             Console.WriteLine("**IMPORTED ORDERS**");
-            foreach(ProductionOrder order in OrdersMgr.OrdersBuffer)
+            foreach (ProductionOrder order in OrdersMgr.OrdersBuffer)
             {
                 Console.WriteLine(order.ToShortInfo());
             }
 
             //initalize units manager
-            UnitsMgr.LoadUnits();
+            await UnitsMgr.LoadUnitsAsync();
 
-       
-            //add queue to QueueManager and load queue from DB
-            foreach (string runtimeID in UnitsMgr.Units.Keys)
+            //load queues from DB
+            await QueuesMgr.LoadAllAsync();
+
+            Console.WriteLine("---------- TEST ID: {0} --------", OrdersMgr.OrdersBuffer[0].RuntimeID); //debug
+
+            foreach (string runtimeID in QueuesMgr.IDs)
             {
                 Console.WriteLine("Queue:\t{0}\t|\tCount:\t{1}\t", runtimeID, QueuesMgr[runtimeID].Count);
             }
 
-
-
-            #endregion
-
         }
+        #endregion
 
         public void InitializeWALEnviroment()
         {
@@ -178,7 +187,7 @@ namespace ServerPMS.Core
             WAL.WALFilePath = GlobalConfig.GlobalRAMConfig.WAL.WALFilePath;
         }
 
-        public Task WALReplay()
+        public async Task WALReplayAsync()
         {
             Logger.LogInformation("Replaying WAL if needed.");
 
@@ -192,18 +201,16 @@ namespace ServerPMS.Core
                     switch (command.ElementAt(0))
                     {
                         case "C":
-                            CDBAAwaitableCommitOperation(Guid.Parse(command[1])).Wait();
+                            await CDBAAwaitableCommitOperation(Guid.Parse(command[1]));
                             break;
                         case "R":
-                            CDBAAwaitableRollbackOperation(Guid.Parse(command[1])).Wait();
+                            await CDBAAwaitableRollbackOperation(Guid.Parse(command[1]));
                             break;
                     }
                 }
                 else
-                    CDBAAwaitableOperation(op).Wait();
+                    await CDBAAwaitableOperation(op);
             }
-
-            return Task.CompletedTask;
         }
 
         public string ToInfo()
@@ -217,21 +224,19 @@ namespace ServerPMS.Core
             }
 
             info += "\n\nAvaiable Units:\n";
-            foreach (ProductionUnit unit in UnitsMgr.Units.Values)
+            foreach (string unit in UnitsMgr.IDs)
             {
-                info += unit.ToInfo();
+                info += UnitsMgr[unit].ToInfo();
             }
 
             info += "\n\n Queues:\n";
-            foreach (string id in UnitsMgr.Units.Keys)
+            foreach (string id in QueuesMgr.IDs)
             {
                 info += QueuesMgr[id].ToInfo();
             }
             return info;
 
         }
-
-       
 
         #region FILE OPERATIONS
 

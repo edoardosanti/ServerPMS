@@ -52,7 +52,7 @@ namespace ServerPMS.Infrastructure.Generic
                 return true;
         }
 
-        public void SmartAdd(T[] items)
+        public void SmartAdd(IEnumerable<T> items)
         {
             foreach(T item in items)
             {
@@ -68,11 +68,6 @@ namespace ServerPMS.Infrastructure.Generic
                 OnItemRemoved(item);
             }
             return MainBuffer.RemoveAll(predicate)>0? true:false;
-        }
-
-        public void SmartAdd(List<T> items)
-        {
-            SmartAdd(items.ToArray());
         }
 
         private void OnItemAdded(T arg)

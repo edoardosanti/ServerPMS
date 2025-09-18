@@ -4,23 +4,31 @@ using Microsoft.Extensions.Logging;
 using ServerPMS.Abstractions.Infrastructure.Config;
 using ServerPMS.Abstractions.Infrastructure.Database;
 using ServerPMS.Abstractions.Infrastructure.Logging;
+using Microsoft.Extensions.Hosting;
+using System;
 
 namespace ServerPMS.Infrastructure.Database
 {
-    public class CommandDBAccessor : ICommandDBAccessor, IDisposable //fire and forget scenario
+    public class CommandDBAccessor : BackgroundService, ICommandDBAccessor, IDisposable  //fire and forget scenario
     {
 
         private readonly BlockingCollection<CDBARequest> sqlQueue = new();
-        private readonly CancellationTokenSource cts = new();
-        private readonly Task workerTask;
-
         private string db;
         private SqliteConnection connection;
-        public Dictionary<Guid, SqliteTransaction> TransactionsTable;
+        public ConcurrentDictionary<Guid, SqliteTransaction> TransactionsTable;
 
         private readonly ILogger<CommandDBAccessor> Logger;
         private readonly IGlobalConfigManager GlobalConfig;
         private readonly IWALLogger WAL;
+
+        private CancellationTokenSource cts;
+
+        public bool IsRunning => _isRunning;
+
+        private volatile bool _isRunning;
+
+        private Task mainTask;
+
 
         public CommandDBAccessor(IGlobalConfigManager configManager, ILogger<CommandDBAccessor> logger, IWALLogger WALLogger)
         {
@@ -34,24 +42,9 @@ namespace ServerPMS.Infrastructure.Database
 
             connection = new SqliteConnection(string.Format("Data Source={0};Mode=ReadWrite;", db));
             connection.Open();
-            TransactionsTable = new Dictionary<Guid, SqliteTransaction>();
-            workerTask = Task.Run(WorkerLoopAsync);
+            TransactionsTable = new ConcurrentDictionary<Guid, SqliteTransaction>();
 
-        }
-
-        public void Stop()
-        {
-            cts.Cancel();
-            sqlQueue.CompleteAdding();
-        }
-
-        public void Dispose()
-        {
-            sqlQueue.Dispose();
-            cts.Dispose();
-            workerTask.Wait();
-            connection.Close();
-            connection.Dispose();
+            _isRunning = false;
         }
 
         public Task EnqueueSql(string sql, Guid CDBATransactionIdentifier)
@@ -108,7 +101,7 @@ namespace ServerPMS.Infrastructure.Database
             if (sqls != null)
             {
                 Guid guid = Guid.NewGuid();
-                TransactionsTable.Add(guid, connection.BeginTransaction());
+                TransactionsTable.TryAdd(guid, connection.BeginTransaction());
                 foreach (string sql in sqls)
                 {
                     EnqueueSql(sql, guid);
@@ -121,14 +114,17 @@ namespace ServerPMS.Infrastructure.Database
 
         public Guid NewTransaction()
         {
-            Logger.LogInformation("CDBA - New transaction: {0}");
             Guid guid = Guid.NewGuid();
-            TransactionsTable.Add(guid, connection.BeginTransaction());
+            Logger.LogInformation("CDBA - New transaction: {0}", guid.ToString());
+
+            TransactionsTable.TryAdd(guid, connection.BeginTransaction());
             return guid;
         }
 
         private async Task WorkerLoopAsync()
         {
+            Logger.LogInformation($"CDBA - Worker loop starting. (Thread: {Thread.CurrentThread.ManagedThreadId} )");
+
             try
             {
                 foreach (CDBARequest request in sqlQueue.GetConsumingEnumerable(cts.Token))
@@ -154,7 +150,7 @@ namespace ServerPMS.Infrastructure.Database
                                     }
                                     //execute command
                                     Logger.LogInformation("CDBA - Executing SQL: {0}", cmd.CommandText);
-                                    cmd.ExecuteNonQuery();
+                                    await cmd.ExecuteNonQueryAsync();
 
                                 }
 
@@ -165,8 +161,8 @@ namespace ServerPMS.Infrastructure.Database
                             case CDBARequestType.TransactionCommit:
                                 Logger.LogInformation("CDBA - Executing Commit TX: {0}", request.TransactionID);
                                 SqliteTransaction commitTX = TransactionsTable[request.TransactionID.Value];
-                                commitTX.Commit();
-                                TransactionsTable.Remove(request.TransactionID.Value);
+                                await commitTX.CommitAsync();
+                                TransactionsTable.TryRemove(request.TransactionID.Value, out _);
                                 request.CompletionSource.SetResult();
                                 WAL.Flush();
                                 break;
@@ -174,8 +170,8 @@ namespace ServerPMS.Infrastructure.Database
                             case CDBARequestType.TransactionRollback:
                                 Logger.LogInformation("CDBA - Executing Rollback TX: {0}", request.TransactionID);
                                 SqliteTransaction rollbackTX = TransactionsTable[request.TransactionID.Value];
-                                rollbackTX.Rollback();
-                                TransactionsTable.Remove(request.TransactionID.Value);
+                                await rollbackTX.RollbackAsync();
+                                TransactionsTable.TryRemove(request.TransactionID.Value,out _);
                                 request.CompletionSource.SetResult();
                                 WAL.Flush();
                                 break;
@@ -188,8 +184,8 @@ namespace ServerPMS.Infrastructure.Database
                         request.CompletionSource.SetException(ex);
                         if (request.TransactionID.HasValue && TransactionsTable.TryGetValue(request.TransactionID.Value, out var tx))
                         {
-                            tx.Rollback();
-                            TransactionsTable.Remove(request.TransactionID.Value);
+                            await tx.RollbackAsync();
+                            TransactionsTable.TryRemove(request.TransactionID.Value, out _);
                             WAL.Flush();
                         }
                         Console.WriteLine(ex);
@@ -200,14 +196,66 @@ namespace ServerPMS.Infrastructure.Database
             catch (OperationCanceledException)
             {
                 Logger.LogInformation("CDBA - Shutting Down.");
-                Dispose();
+                
             }
             catch (Exception ex)
             {
                 Console.WriteLine("CDBA Worker Error: " + ex);
+                throw;
             }
         }
 
+        public override void Dispose()
+        {
+            sqlQueue.Dispose();
+            connection.Dispose();
+            base.Dispose();
+        }
+
+        public override async Task StopAsync(CancellationToken cancellationToken)
+        {
+            Logger.LogInformation("CDBA - Shutting Down");
+
+            sqlQueue.CompleteAdding();
+
+            if (mainTask != null)
+            {
+                await mainTask;
+            }
+
+            foreach (var pair in TransactionsTable)
+            {
+                try { pair.Value.Rollback(); } catch { }
+                pair.Value.Dispose();
+            }
+            TransactionsTable.Clear();
+
+            connection.Close();
+
+            await base.StopAsync(cancellationToken);
+        }
+
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            try
+            {
+                _isRunning = true;
+
+                mainTask = Task.Factory.StartNew(
+                    WorkerLoopAsync,
+                    stoppingToken,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default);
+
+                await mainTask;
+            }
+            finally
+            {
+                _isRunning = false;
+            }
+
+        }
     }
 }
 

@@ -5,11 +5,11 @@
 //
 using System.Data.Common;
 using Microsoft.Extensions.Logging;
+using ServerPMS.Core;
 using ServerPMS.Abstractions.Managers;
 using ServerPMS.Infrastructure.External;
-using ServerPMS.Infrastructure.Database;
+using ServerPMS.Abstractions.Infrastructure.Concurrency;
 using ServerPMS.Abstractions.Infrastructure.Database;
-
 
 namespace ServerPMS.Managers
 {
@@ -21,6 +21,7 @@ namespace ServerPMS.Managers
         private readonly IQueryDBAccessor QueryDBA;
         private readonly IGlobalIDsManager GlobalIDsManager;
         private readonly ILogger<OrdersManager> Logger;
+        private readonly IResourceMapper Mapper;
 
         //main order buffer
         OrdersBuffer buffer;
@@ -38,16 +39,16 @@ namespace ServerPMS.Managers
 
         public ProductionOrder this[string runtimeID] => buffer[indexLookupTable[runtimeID]];
 
-        public OrdersManager(ICommandDBAccessor CDBA, IQueryDBAccessor QDBA,IGlobalIDsManager globalIDsManager,ILogger<OrdersManager> logger)
+        public OrdersManager(ICommandDBAccessor CDBA, IQueryDBAccessor QDBA,IGlobalIDsManager globalIDsManager,ILogger<OrdersManager> logger, IResourceMapper mapper)
         {
             CmdDBA = CDBA;
             QueryDBA = QDBA;
             GlobalIDsManager = globalIDsManager;
             Logger = logger;
-
+            Mapper = mapper;
             indexLookupTable = new Dictionary<string, int>();
 
-            buffer = new OrdersBuffer(globalIDsManager);
+            buffer = new OrdersBuffer(GlobalIDsManager,Mapper);
             buffer.ItemAddedHandler += (object sender, ProductionOrder order)=> {
 
                 OnOrderAdded(order);
@@ -133,7 +134,7 @@ namespace ServerPMS.Managers
             status = (int)newState;
             string sql = string.Format("UPDATE prod_orders SET status = {0} WHERE id = {1};", status, dbId);
             CmdDBA.EnqueueSql(sql);
-            buffer[indexLookupTable[runtimeID]].ChangeState(newState);
+            buffer[indexLookupTable[runtimeID]].UpdateOrderStatus(newState);
 
             Logger.LogInformation("Order state changed");
         }
@@ -142,8 +143,6 @@ namespace ServerPMS.Managers
         public bool RemoveNotEOFOrder(Predicate<ProductionOrder> predicate)
         {
             ProductionOrder target = buffer.Find(predicate);
-            GlobalIDsManager.RemoveOrderEntry(target.RuntimeID);
-
             string[] sqls =
             {
                 string.Format("DELETE FROM prod_orders WHERE ID={0};",GlobalIDsManager.GetOrderDBID(target.RuntimeID)),
@@ -157,16 +156,15 @@ namespace ServerPMS.Managers
         //remove order from orders buffer, order table and queues (using runtimeID)
         public bool RemoveNotEOFOrder(string runtimeID)
         {
-            GlobalIDsManager.RemoveOrderEntry(runtimeID);
             return RemoveNotEOFOrder(x => x.RuntimeID == runtimeID);
         }
 
         //load into Buffer orders from DB
-        public void LoadOrdersFromDB()
+        public async Task LoadOrdersFromDBAsync()
         {
 
             //leggere ordini da DB e aggiungerli al buffer
-            List<ProductionOrder> fromDB = QueryDBA.QueryAsync("SELECT * FROM prod_orders",(DbDataReader dbdr) =>
+            List<ProductionOrder> fromDB = await QueryDBA.QueryAsync("SELECT * FROM prod_orders",(DbDataReader dbdr) =>
             {
                 List<ProductionOrder> _fromDB = new();
 
@@ -185,7 +183,7 @@ namespace ServerPMS.Managers
                 }
                 return _fromDB;
             }
-            ).GetAwaiter().GetResult();
+            );
       
             buffer.SmartAdd(fromDB);
 
@@ -217,7 +215,7 @@ namespace ServerPMS.Managers
         }
 
         //write array of orders to DB
-        private void WriteOrdersToDB(ProductionOrder[] orders)
+        private void WriteOrdersToDB(IEnumerable<ProductionOrder> orders)
         {
             if (orders != null)
             {
@@ -229,7 +227,7 @@ namespace ServerPMS.Managers
         }
 
         //load orders from excel file to main buffer
-        public void LoadFromExcelFile(string filename, ExcelOrderParserParams parserParams)
+        public async Task LoadFromExcelFileAsync(string filename, ExcelOrderParserParams parserParams)
         {
             if (File.Exists(filename))
             {
@@ -240,7 +238,7 @@ namespace ServerPMS.Managers
                     {
                         WriteOrderToDB(order);
                     }
-                    LoadOrdersFromDB();
+                    await LoadOrdersFromDBAsync();
                 }
                 else
                     throw new NullReferenceException("No orders found");
@@ -262,6 +260,11 @@ namespace ServerPMS.Managers
 
         }
 
+        public void Import(IEnumerable<ProductionOrder> orders)
+        {
+            buffer.SmartAdd(orders);
+            WriteOrdersToDB(orders);
+        }
     }
 }
 

@@ -174,7 +174,7 @@ namespace ServerPMS.Infrastructure.Generic
             return list.IndexOf(item);
         }
 
-        public string ToInfo()
+        public virtual string ToInfo()
         {
             string info = string.Empty;
             foreach(T  item in this)

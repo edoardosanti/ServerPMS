@@ -4,19 +4,24 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using ServerPMS.Abstractions.Infrastructure.Config;
 using ServerPMS.Abstractions.Infrastructure.Database;
+using Microsoft.Extensions.Hosting;
+using System.Threading;
 
 namespace ServerPMS.Infrastructure.Database
 {
-    public class QueryDBAccessor : IQueryDBAccessor, IDisposable //wait for the query to return
+    public class QueryDBAccessor : BackgroundService, IQueryDBAccessor, IDisposable //wait for the query to return
     {
         private string db;
         private SqliteConnection connection;
         private readonly BlockingCollection<object> _queryQueue = new();
-        private readonly CancellationTokenSource _cts = new();
-        private readonly Task workerTask;
+        private Task mainTask;
 
         private bool disposeRequested = false;
 
+        private CancellationTokenSource cts;
+
+        public bool IsRunning => _isRunning;
+        private volatile bool _isRunning;
 
         private readonly IGlobalConfigManager GlobalConfig;
         private readonly ILogger<QueryDBAccessor> Logger;
@@ -33,8 +38,7 @@ namespace ServerPMS.Infrastructure.Database
             connection = new SqliteConnection(string.Format("Data Source={0};Mode=ReadWrite;", db));
             connection.Open();
 
-            Logger.LogInformation("QDBA - Worker loop starting.");
-            workerTask = Task.Run(WorkerLoopAsync);
+            _isRunning = false;
 
         }
 
@@ -49,9 +53,10 @@ namespace ServerPMS.Infrastructure.Database
 
         private async Task WorkerLoopAsync()
         {
+            Logger.LogInformation($"QDBA - Worker loop starting. (Thread: {Thread.CurrentThread.ManagedThreadId} )");
             try
             {
-                foreach (var obj in _queryQueue.GetConsumingEnumerable(_cts.Token))
+                foreach (var obj in _queryQueue.GetConsumingEnumerable(cts.Token))
                 {
                     if (obj is QueryRequest<object> genericRequest)
                     {
@@ -69,10 +74,6 @@ namespace ServerPMS.Infrastructure.Database
                     }
                 }
             }
-            catch (OperationCanceledException)
-            {
-                Dispose();
-            }
             catch (Exception ex)
             {
                 Console.WriteLine("QDBA Worker Error: " + ex);
@@ -86,7 +87,7 @@ namespace ServerPMS.Infrastructure.Database
                 Logger.LogInformation("QDBA - Executing SQL: {0}", request.Sql);
                 using var cmd = connection.CreateCommand();
                 cmd.CommandText = request.Sql;
-                using var reader = await cmd.ExecuteReaderAsync(_cts.Token);
+                using var reader = await cmd.ExecuteReaderAsync(cts.Token);
                 var result = request.Parser(reader);
                 request.CompletionSource.SetResult(result);
             }
@@ -104,7 +105,7 @@ namespace ServerPMS.Infrastructure.Database
                 Logger.LogInformation("QDBA - Executing SQL: {0}", request.Sql);
                 using var cmd = connection.CreateCommand();
                 cmd.CommandText = request.Sql;
-                using var reader = await cmd.ExecuteReaderAsync(_cts.Token);
+                using var reader = await cmd.ExecuteReaderAsync(cts.Token);
                 var result = request.Parser(reader);
                 request.CompletionSource.SetResult(result);
             }
@@ -115,17 +116,48 @@ namespace ServerPMS.Infrastructure.Database
         }
 
         // Call this to shutdown gracefully
-        public void Dispose()
+        public override void Dispose()
         {
-            Logger.LogInformation("QDBA - Shutting Down");
-            _cts.Cancel();
+            connection.Dispose();
+            _queryQueue.Dispose();
+            base.Dispose();
+        }
+
+        protected async override Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+
+            try {
+
+                _isRunning = true;
+
+                mainTask = Task.Factory.StartNew(
+                    WorkerLoopAsync,
+                    stoppingToken,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default);
+                await mainTask;
+            }
+            finally
+            {
+                _isRunning = false;
+            }
+        }
+
+
+        public override async Task StopAsync(CancellationToken cancellationToken)
+        {
             _queryQueue.CompleteAdding();
-            workerTask.Wait();
+
+            if (mainTask != null)
+            {
+                await mainTask;
+            }
 
             connection.Close();
-            connection.Dispose();
-            _cts.Dispose();
-            _queryQueue.Dispose();
+
+            await base.StopAsync(cancellationToken);
+
         }
     }
 }

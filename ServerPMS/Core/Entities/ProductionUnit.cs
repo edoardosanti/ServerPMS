@@ -6,7 +6,7 @@
 
 using System.Collections;
 using ServerPMS.Infrastructure.Database;
-
+using ServerPMS.Infrastructure.Generic;
 namespace ServerPMS
 {
     public class ProductionUnit:IDBIdentifiable
@@ -16,6 +16,7 @@ namespace ServerPMS
         public event EventHandler UnitStartHandler;
         public event EventHandler UnitStopHandler;
         public event EventHandler UnitChangeOverHandler;
+        public event EventHandler<string> UnitNotesUpdateHandler;
 
 
         protected void OnUnitStop(EventArgs args)
@@ -34,6 +35,11 @@ namespace ServerPMS
             }
         }
 
+        protected void OnNotesUpdate(string notes)
+        {
+            UnitNotesUpdateHandler?.Invoke(this, notes);
+        }
+        
         protected void OnUnitChangeOver(EventArgs args)
         {
             if (UnitChangeOverHandler != null)
@@ -78,71 +84,61 @@ namespace ServerPMS
             get { return type; }
 
         }
-        public string UnitNotes { private set; get; }
+        public string Notes { set; get; }
+        public string Name { private set; get; }
 
-        public ProductionUnit(int dbId,UnitType type, string notes, params int[] orders)
+        //binded queue logic
+        private UnitQueue? queue;
+        public string? QueueID
+        {
+            get
+            {
+                if (queue != null)
+                    return queue.Id;
+                else
+                    return null;
+            }
+        }
+
+        public ProductionUnit(int dbId, string name, UnitType type, string notes, UnitQueue? queue = null) //la produzione corrente viene SEMPRE rimossa dalla coda all'avvio della suddeta
         {
             DBId = dbId;
-            UnitNotes = notes;
+            Notes = notes;
             UnitStatus = UnitState.Standby;
             UnitType = type;
-
-           
-            CurrentProductionID = -1;
-            NextInQueue = -1; //just to not get error
+            Name = name;
+            this.queue = queue;
 
         }
 
-        public int CurrentProductionID;
-        public int NextInQueue;
+        public void UpdateNotes(string notes)
+        {
 
-        //public void Enqueue(int id)
-        //{
-        //    Queue.Enqueue(id);
-        //}
+            Notes = notes;
+            
+        }
 
-        //public bool Dequeue(int id)
-        //{
-        //    return Queue.Dequeue(id);
-        //}
+        public void BindQueue(UnitQueue queue)
+        {
+            this.queue = queue;
+        }
 
-        //public void MoveDown(Predicate<int> predicate, int jmps)
-        //{
-        //    if (jmps < 0)
-        //        throw new ArgumentOutOfRangeException("Jumps in queue can be only values from zero.");
-        //    for (int i = 0; i < jmps; i++)
-        //    {
-        //        Queue.MoveDown(predicate);
-        //    }
-        //}
-
-        //public void MoveUp(Predicate<int> predicate, int jmps)
-        //{
-        //    if (jmps < 0)
-        //        throw new ArgumentOutOfRangeException("Jumps in queue can be only values from zero.");
-        //    for (int i = 0; i < jmps; i++)
-        //    {
-        //        Queue.MoveUp(predicate);
-        //    }
-        //}
+        //todo: check production lifetime cycle from unit control panel
 
         public void Start()
         {
-            //CurrentProductionID = Queue.GetNextAndDequeue();
             UnitStatus = UnitState.Running;
             OnUnitStart(EventArgs.Empty);
         }
 
         public void Stop()
         {
-            CurrentProductionID = -1;
             UnitStatus = UnitState.Standby;
             OnUnitStop(EventArgs.Empty);
         }
 
         public void ChangeOver()
         {
-            CurrentProductionID = -1;
             UnitStatus = UnitState.ChangeOver;
             OnUnitChangeOver(EventArgs.Empty);
 
@@ -150,7 +146,7 @@ namespace ServerPMS
 
         public string ToInfo()
         {
-            return string.Format("DBID: {0} Notes: {1} Unit Type: {2}\nStatus: {3} \n-------\nCurrent Production:\n{4}\n-------\nQueue:\n{5}", DBId, UnitNotes, UnitType, UnitStatus, (CurrentProductionID == -1) ? "None" : CurrentProductionID.ToString(),"");
+            return string.Format("DBID: {0} Notes: {1} Unit Type: {2}\nStatus: {3} \nQueue:\n{4}", DBId, Notes, UnitType, UnitStatus,QueueID);
         }
     }
 }

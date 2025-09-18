@@ -20,7 +20,6 @@ namespace ServerPMS.Infrastructure.Database
         {
             OrdersRTD = new Dictionary<string, int>();
             OrdersDTR = new Dictionary<int, string>();
-
             UnitsRTD = new Dictionary<string, int>();
             UnitsDTR = new Dictionary<int, string>();
         }

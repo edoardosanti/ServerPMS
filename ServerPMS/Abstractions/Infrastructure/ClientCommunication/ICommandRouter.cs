@@ -1,10 +1,12 @@
-﻿using System;
-using ServerPMS.Infrastructure.ClientCommunication;
+﻿using ServerPMS.Infrastructure.ClientCommunication;
 namespace ServerPMS.Abstractions.Infrastructure.ClientCommunication
 {
 	public interface ICommandRouter
 	{
-		Task RouteAsync(SSLClientHandler handler, Message cmd);
-	}
+		Task RouteRequestAsync(ClientHandler handler, Message cmd);
+        Task RouteFeedNackAsync(ClientHandler handler, Message cmd);
+		Task RouteSystemAsync(ClientHandler handler, Message cmd);
+
+    }
 }
 

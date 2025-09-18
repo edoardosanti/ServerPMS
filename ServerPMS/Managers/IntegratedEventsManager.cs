@@ -47,18 +47,18 @@ namespace ServerPMS.Managers
 
             string[] sqls =
             {
-            string.Format("UPDATE prod_orders SET status = {0} WHERE ID = {1};",(int)OrderState.InQueue,DBIds[1]),
-            string.Format(
-                "INSERT INTO units_queues (unit_id, order_id, position) " +
-                "VALUES ({0}, {1}, COALESCE((SELECT MAX(position) FROM units_queues WHERE unit_id = {0}), -1) + 1);",
-                DBIds[0],DBIds[1]),
-        };
+                string.Format("UPDATE prod_orders SET status = {0} WHERE ID = {1};",(int)OrderState.InQueue,DBIds[1]),
+                string.Format(
+                    "INSERT INTO units_queues (unit_id, order_id, position) " +
+                    "VALUES ({0}, {1}, COALESCE((SELECT MAX(position) FROM units_queues WHERE unit_id = {0}), -1) + 1);",
+                    DBIds[0],DBIds[1]),
+            };
 
             //create and commit transaction
             CmdDBA.NewTransactionAndCommit(sqls);
 
             //update ram state
-            OrdersMgr.OrdersBuffer[orderRuntimeID].ChangeState(OrderState.InQueue);
+            OrdersMgr.OrdersBuffer[orderRuntimeID].UpdateOrderStatus(OrderState.InQueue);
 
             //update ram queue
             QueuesMgr[queueRuntimeID].Enqueue(orderRuntimeID);
@@ -96,7 +96,7 @@ namespace ServerPMS.Managers
             //commit transaction
             CmdDBA.NewTransactionAndCommit(transactionSQLs);
 
-            OrdersMgr[orderRuntimeID].ChangeState(OrderState.Completed);
+            OrdersMgr[orderRuntimeID].UpdateOrderStatus(OrderState.Completed);
 
             return orderRuntimeID;
         }

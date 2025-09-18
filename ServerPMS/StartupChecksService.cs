@@ -11,6 +11,7 @@ namespace ServerPMS
     public class StartupChecksService
 	{
         private static readonly string BASE_DIRECTORY = "./data";
+       
         private static readonly string CCENV_FILE_NAME = BASE_DIRECTORY + "/_cc.env";
         private static readonly string DB_FILE_NAME = BASE_DIRECTORY + "/test2.db";
         private static readonly string ENCRYPTED_CONFIG_FILE_NAME = BASE_DIRECTORY + "/pmsconf.enc";
@@ -19,6 +20,9 @@ namespace ServerPMS
 
         private readonly IGlobalConfigManager GlobalConfig;
         private readonly IConfigCrypto ConfigCrypto;
+
+        //FLAGS
+        private static readonly bool INTERNET_BYPASS = true;
 
         private class PMSDefaultConfig : PMSConfig
         {
@@ -180,6 +184,8 @@ namespace ServerPMS
 
         private bool IsInternetAvailable()
         {
+            if (INTERNET_BYPASS)
+                return true;
             try
             {
                 using HttpClient client = new();

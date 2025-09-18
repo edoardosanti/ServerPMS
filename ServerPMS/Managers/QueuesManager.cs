@@ -8,8 +8,8 @@ using System.Data.Common;
 using Microsoft.Extensions.Logging;
 using ServerPMS.Abstractions.Managers;
 using ServerPMS.Infrastructure.Generic;
-using ServerPMS.Infrastructure.Database;
 using ServerPMS.Abstractions.Infrastructure.Database;
+using ServerPMS.Abstractions.Infrastructure.Concurrency;
 
 namespace ServerPMS.Managers
 {
@@ -28,21 +28,23 @@ namespace ServerPMS.Managers
         private readonly IQueryDBAccessor QueryDBA;
         private readonly ILogger<QueuesManager> Logger;
         private readonly IGlobalIDsManager GlobalIDsManager;
+        private readonly IResourceMapper Mapper;
 
-        Dictionary<string, ReorderableQueue<string>> Queues;
+        Dictionary<string, UnitQueue> Queues;
 
-        public ReorderableQueue<string> this[string runtimeID] => Queues[runtimeID];
+        public UnitQueue this[string runtimeID] => Queues[runtimeID];
         public IEnumerable<string> IDs => Queues.Keys;
 
         #endregion
 
         #region Constructors
-        public QueuesManager(ICommandDBAccessor CBDA,IQueryDBAccessor QDBA,ILogger<QueuesManager> logger,IGlobalIDsManager globalIDsManager)
+        public QueuesManager(ICommandDBAccessor CBDA,IQueryDBAccessor QDBA,ILogger<QueuesManager> logger,IGlobalIDsManager globalIDsManager,IResourceMapper mapper )
         {
-            Queues = new Dictionary<string, ReorderableQueue<string>>();
+            Queues = new Dictionary<string, UnitQueue>();
             CmdDBA = CBDA;
             QueryDBA = QDBA;
             Logger = logger;
+            Mapper = mapper;
             GlobalIDsManager = globalIDsManager;
 
             Logger.LogInformation("Queues Manager started.");
@@ -52,64 +54,100 @@ namespace ServerPMS.Managers
 
         #region Manager Operations
 
-        public void NewQueue(string runtimeID)
+
+        public string NewQueue(string? bindTo=null)
         {
-            Queues.Add(runtimeID, new ReorderableQueue<string>());
+            string runtimeID = Guid.NewGuid().ToString();
+            UnitQueue queue;
+            if (bindTo != null)
+                queue = new UnitQueue(runtimeID, bindTo);
+            else
+                queue = new UnitQueue(runtimeID);
+
+            Queues.Add(runtimeID, queue);
             Queues[runtimeID].ItemMovedHandler += (object sender, string orderRuntimeID) =>
             {
                 _UpdatePositionDB(orderRuntimeID, (sender as ReorderableQueue<string>).PositionOf(orderRuntimeID));
             };
-            Logger.LogInformation("Queue added {0}.",runtimeID);
 
+            Mapper.MapQueue(runtimeID, queue); //map resource for concurrency handling
+            Logger.LogInformation("Queue added {0}.", runtimeID);
+            return runtimeID;
+            
         }
 
         public Task LoadQueueAsync(string runtimeID)
         {
+            UnitQueue queue = Queues[runtimeID];
+            int dbUnitID;
 
-            //TODO CHECK introduces duplicates 
-            int dbUnitID = GlobalIDsManager.GetUnitDBID(runtimeID);
-
-            string sql = string.Format("SELECT * FROM units_queues WHERE unit_id={0};", dbUnitID);
-
-            Logger.LogInformation("Started loading op queue {0}.", runtimeID);
-
-            return QueryDBA.QueryAsync(sql, (DbDataReader dbdr) =>
+            if (queue.IsBinded) //if unit is binded to queue
             {
-                //use SortedDict to store the entries sorted by position
-                SortedDictionary<int, string> posTbl = new SortedDictionary<int, string>();
+                dbUnitID = GlobalIDsManager.GetUnitDBID(queue.BindedUnitID);
 
-                while (dbdr.Read())
+                string sql = string.Format("SELECT * FROM units_queues WHERE unit_id={0};", dbUnitID);
+
+                Logger.LogInformation("Started loading op queue {0}.", runtimeID);
+
+                return QueryDBA.QueryAsync(sql, (DbDataReader dbdr) =>
                 {
-                    //add every line to the sorted dict
-                    posTbl.Add(dbdr.GetInt32(3), GlobalIDsManager.GetOrderRuntimeID(dbdr.GetInt32(2)));
-                }
+                    //use SortedDict to store the entries sorted by position
+                    SortedDictionary<int, string> posTbl = new SortedDictionary<int, string>();
 
-                //enqueue all the elements in the sorted dict 
-                Queues[runtimeID].SmartEnqueue(posTbl.Values);
+                    while (dbdr.Read())
+                    {
+                        //add every line to the sorted dict
+                        posTbl.Add(dbdr.GetInt32(3), GlobalIDsManager.GetOrderRuntimeID(dbdr.GetInt32(2)));
+                    }
 
-                return 0;
-            });
+                    //enqueue all the elements in the sorted dict 
+                    Queues[runtimeID].SmartEnqueue(posTbl.Values);
 
-           
+                    return 0;
+                });
+            }
+            else
+                throw new InvalidOperationException("The queue is not binded to any production unit");
         }
+
         public void LoadQueue(string runtimeID)
         {
-            LoadQueueAsync(runtimeID).Wait();
+            try
+            {
+                LoadQueueAsync(runtimeID).Wait();
+            }
+            catch
+            {
+                throw;
+            }
         }
 
         public void LoadAll()
         {
             foreach (string key in Queues.Keys)
             {
-                LoadQueueAsync(key).Wait();
+                try {
+                    LoadQueueAsync(key).Wait();
+                }
+                catch(Exception ex)
+                {
+                    Logger.LogError(ex.Message);
+                }
             }
         }
 
-        public void LoadAllAsync()
+        public async Task LoadAllAsync()
         {
             foreach (string key in Queues.Keys)
             {
-                LoadQueueAsync(key);
+                try
+                {
+                    await LoadQueueAsync(key);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex.Message);
+                }
             }
         }
 

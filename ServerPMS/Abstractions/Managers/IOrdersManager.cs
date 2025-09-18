@@ -1,5 +1,6 @@
 ﻿using System;
 using ServerPMS.Infrastructure.External;
+using ServerPMS.Core;
 
 namespace ServerPMS.Abstractions.Managers
 {
@@ -14,8 +15,9 @@ namespace ServerPMS.Abstractions.Managers
 		void UpdateOrderState(string runtimeID, OrderState newState);
 		bool RemoveNotEOFOrder(Predicate<ProductionOrder> predicate);
 		bool RemoveNotEOFOrder(string runtimeID);
-		void LoadOrdersFromDB();
-		void LoadFromExcelFile(string filename, ExcelOrderParserParams parserParams);
+		Task LoadOrdersFromDBAsync();
+		void Import(IEnumerable<ProductionOrder> orders);
+        Task LoadFromExcelFileAsync(string filename, ExcelOrderParserParams parserParams);
 
     }
 }

@@ -5,15 +5,15 @@ namespace ServerPMS.Abstractions.Managers
     public interface IQueuesManager
 	{
 		//properties
-        ReorderableQueue<string> this[string runtimeId] { get; }
+        UnitQueue this[string runtimeId] { get; }
 		IEnumerable<string> IDs { get; }
 
 		//methods
-        void NewQueue(string runtimeID);
-		Task LoadQueueAsync(string runtimeID);
+        string NewQueue(string bindToUnit);
+        Task LoadQueueAsync(string runtimeID);
 		void LoadQueue(string runtimeID);
 		void LoadAll();
-		void LoadAllAsync();
+		Task LoadAllAsync();
 
 	}
 }

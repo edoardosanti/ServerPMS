@@ -1,6 +1,5 @@
 ﻿using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Hosting;
 using ServerPMS.Abstractions.Core;
 using ServerPMS.Abstractions.Infrastructure.Config;
@@ -15,52 +14,123 @@ namespace ServerPMS
     {
 
         private readonly IAppCore _appCore;
-        private TcpListener ctsListener;
-        private TcpListener stcListener;
-        private TcpListener bkpListener;
+        private TcpListener reqListener;
+        private TcpListener feedListener;
+        private TcpListener sysListener;
         private readonly IServiceProvider _serviceProvider;
+
+        private Task loop;
+        private object stateLock;
+        private bool state;
+
 
         public Application(IAppCore core,IConfigCrypto configCrypto,IGlobalConfigManager globalConfigManager, IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
+            _appCore = core;
+            stateLock = new();
+            state = false;
+
+        }
+
+        public override async Task StartAsync(CancellationToken cancellationToken)
+        {
 
             //initializes all business logic
-            _appCore = core;
-            _appCore.InitializeWALEnviroment();
-            _appCore.WALReplay();
+            try
+            {
+                await _appCore.InitializeManagersAsync();
+                _appCore.InitializeWALEnviroment();
+                Task walReplayTask = _appCore.WALReplayAsync();
 
-            ctsListener = new TcpListener(IPAddress.Any, 5600);
-            ctsListener.Start();
+                reqListener = new TcpListener(IPAddress.Any, 56000);
+                reqListener.Start();
 
-            stcListener = new TcpListener(IPAddress.Any, 5610);
-            stcListener.Start();
+                feedListener = new TcpListener(IPAddress.Any, 56100);
+                feedListener.Start();
 
-            bkpListener = new TcpListener(IPAddress.Any, 5620);
-            bkpListener.Start();
+                sysListener = new TcpListener(IPAddress.Any, 56200);
+                sysListener.Start();
 
-            Console.Clear();
-            Console.WriteLine("Server started...");
 
+                await walReplayTask;
+                Console.WriteLine("Application start async called.");
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error in application start: {0}", ex.Message); //-> log 
+            }
+
+             base.StartAsync(cancellationToken);
+
+        }
+
+        public async Task StopAsync(CancellationToken cancellationToken)
+        {
+            while (!GetState())
+            {
+                await Task.Delay(100);
+            }
+            loop.Dispose();
+        }
+
+        private void SetState(bool newState)
+        {
+            lock (stateLock)
+            {
+                state = newState;
+            }
+        }
+
+        private bool GetState()
+        {
+            lock (stateLock)
+            {
+                return state ;
+            }
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            while (!stoppingToken.IsCancellationRequested)
+            Console.WriteLine("Application execute async called");
+            try
             {
+                Console.WriteLine("Server started...");
 
-                CArray client = new CArray
+                while (true)
                 {
-                    cts = await ctsListener.AcceptTcpClientAsync(),
-                    stc = await stcListener.AcceptTcpClientAsync(),
-                    bkp = await bkpListener.AcceptTcpClientAsync()
-                };
+                    Console.WriteLine("Handlers loop iteration start");
+                    Task<TcpClient> reqTask = reqListener.AcceptTcpClientAsync();
+                    Task<TcpClient> feedTask = feedListener.AcceptTcpClientAsync();
+                    Task<TcpClient> systemTask = sysListener.AcceptTcpClientAsync();
 
-                using var scope = _serviceProvider.CreateScope(); // <-- create DI scope for this connection
-                var handler = scope.ServiceProvider.GetRequiredService<IClientHandler>();
+                    await Task.WhenAll(reqTask, feedTask, systemTask);
 
-                _ = handler.HandleClientAsync(client); // async fire-and-forget
+                    SetState(true);
+
+                    CArray client = new()
+                    {
+                        req = reqTask.Result,
+                        feed = feedTask.Result,
+                        sys = systemTask.Result
+                    };
+
+                    IServiceScope scope = _serviceProvider.CreateScope(); // <-- create DI scope for this connection
+                    IClientHandler handler = ActivatorUtilities.CreateInstance<ClientHandler>(scope.ServiceProvider, scope);
+                    _ = handler.HandleClientAsync(client);
+                    Console.WriteLine("Handlers loop iteration end");
+
+                    SetState(false);
+                }
             }
+            catch (Exception ex)
+            {
+                SetState(false);
+                Console.WriteLine("Errore in Application.cs nella creazioned di nuovo client handler: {0}\n{1}", ex.Message, ex.StackTrace);
+                await StopAsync(stoppingToken);
 
+            }
         }
     }
 } 

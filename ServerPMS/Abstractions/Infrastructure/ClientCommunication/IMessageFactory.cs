@@ -7,13 +7,17 @@ namespace ServerPMS.Abstractions.Infrastructure.ClientCommunication
 	{
 
         //methods
-        public byte[] GetBytes(Message message);
-        public Message GetMessage(byte[] bytes);
-        public Message GetMessage(byte cid, byte flags, string payload);
-        public Message GetMessage(CID cid, Flags flags, string payload);
-        public Message AckMessage();
+        public string GetString(Message message);
+        public byte[] Serialize(Message message);
+        public Message Deserialize(byte[] bytes);
+        public Message NewMessage(byte cid, byte flags, string payload);
+        public Message NewMessage(byte cid, byte[] id, byte flags, string payload);
+        public Message NewMessage(CID cid, Flags flags, string payload);
+        public Message NewMessage(CID cid,Guid id, Flags flags, string payload);
+        public Message AckMessage(byte[] targetId);
         public Message NackMessage();
         public Message Heartbeat();
+        public Message Logout();
 
     }
 }

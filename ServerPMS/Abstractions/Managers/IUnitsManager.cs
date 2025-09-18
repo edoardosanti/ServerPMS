@@ -3,13 +3,18 @@ namespace ServerPMS.Abstractions.Managers
 {
 	public interface IUnitsManager
 	{
-		Dictionary<string, ProductionUnit> Units { get; }
+		
+        ProductionUnit this[string runtimeId] { get; }
+		IEnumerable<string> IDs { get; }
 
         //methods
-        void LoadUnits();
+        Task LoadUnitsAsync();
 		void Start(string runtimeID);
 		void Stop(string runtimeID);
-		
-	}
+		string? GetName(string runtimeID);
+		string? GetNotes(string runtimeID);
+
+
+    }
 }
 

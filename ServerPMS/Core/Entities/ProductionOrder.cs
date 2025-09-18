@@ -10,6 +10,72 @@ namespace ServerPMS
     public class ProductionOrder:IEquatable<ProductionOrder>,IDBIdentifiable
     {
         public event EventHandler<OrderState> StateChangedHandler;
+        public event EventHandler<string> PartCodeChangedHandler;
+        public event EventHandler<string> PartDescriptionChangedHandler;
+        public event EventHandler<int> QtyChangedHandler;
+        public event EventHandler<string> CustomerOrderRefChangedHandler;
+        public event EventHandler<string> MoldIDChangedHandler;
+        public event EventHandler<string> MoldLocationChangedHandler;
+        public event EventHandler<string> MoldNotesChangedHandler;
+        public event EventHandler<string> CustomerNameChangedHandler;
+        public event EventHandler<string> DeliveryFacilityChangedHandler;
+        public event EventHandler<DateOnly> DeliveryDateChangedHandler;
+
+
+        protected void OnPartCodeChanged(string newPartCode)
+        {
+            PartCodeChangedHandler?.Invoke(this, newPartCode);
+        }
+
+        protected void OnPartDesChanged(string newPartDes)
+        {
+            PartDescriptionChangedHandler?.Invoke(this, newPartDes);
+        }
+
+        protected void OnQtyChanged(int newQty)
+        {
+            QtyChangedHandler?.Invoke(this, newQty);
+        }
+
+        protected void OnCustomerRefChanged(string newRef)
+        {
+            CustomerOrderRefChangedHandler?.Invoke(this, newRef);
+        }
+
+        protected void OnMoldIDChanged(string newMoldID)
+        {
+            MoldIDChangedHandler?.Invoke(this, newMoldID);
+        }
+
+        protected void OnMoldLocationChanged(string newLocation)
+        {
+            MoldLocationChangedHandler?.Invoke(this, newLocation);
+        }
+
+        protected void OnMoldNotesChanged(string newNotes)
+        {
+            MoldNotesChangedHandler?.Invoke(this, newNotes);
+        }
+
+        protected void OnCustomerNameChanged(string newCustomerName)
+        {
+            CustomerNameChangedHandler?.Invoke(this, newCustomerName);
+        }
+
+        protected void OnDeliveryFacilityChanged(string newFacility)
+        {
+            DeliveryFacilityChangedHandler?.Invoke(this, newFacility);
+        }
+
+        protected void OnDeliveryDateChanged(DateOnly newDate)
+        {
+            DeliveryDateChangedHandler?.Invoke(this, newDate);
+        }
+
+        public void OnStateChanged(OrderState newState)
+        {
+            StateChangedHandler?.Invoke(this, newState);
+        }
 
         public string RuntimeID { private set; get; }
         public int DBId {  set; get; }
@@ -62,7 +128,7 @@ namespace ServerPMS
             get { return qty; }
         }
 
-        string customerOrderRef;
+        private string customerOrderRef;
         public string CustomerOrderRef
         {
             private set
@@ -200,6 +266,78 @@ namespace ServerPMS
             get { return dateAdded.ToShortDateString(); }
         }
 
+        public void UpdatePartCode(string newPartCode)
+        {
+            PartCode = newPartCode;
+            OnPartCodeChanged(newPartCode);
+        }
+
+        public void UpdatePartDescription(string newDescription)
+        {
+            PartDescription = newDescription;
+            OnPartDesChanged(newDescription);
+        }
+
+        public void UpdateQty(int newQty)
+        {
+            Qty = newQty;
+            OnQtyChanged(newQty);
+        }
+
+        public void UpdateCustomerOrderRef(string newRef)
+        {
+            CustomerOrderRef = newRef;
+            OnCustomerRefChanged(newRef);
+        }
+
+        public void UpdateDefaultProductionUnit(int newUnit)
+        {
+            DefaultProductionUnit = newUnit;
+            // No event defined for DefaultProductionUnit
+        }
+
+        public void UpdateMoldID(string newMoldID)
+        {
+            MoldID = newMoldID;
+            OnMoldIDChanged(newMoldID);
+        }
+
+        public void UpdateMoldLocation(string newLocation)
+        {
+            MoldLocation = newLocation;
+            OnMoldLocationChanged(newLocation);
+        }
+
+        public void UpdateMoldNotes(string newNotes)
+        {
+            MoldNotes = newNotes;
+            OnMoldNotesChanged(newNotes);
+        }
+
+        public void UpdateCustomerName(string newCustomerName)
+        {
+            CustomerName = newCustomerName;
+            OnCustomerNameChanged(newCustomerName);
+        }
+
+        public void UpdateDeliveryFacility(string newFacility)
+        {
+            DeliveryFacility = newFacility;
+            OnDeliveryFacilityChanged(newFacility);
+        }
+
+        public void UpdateDeliveryDate(string newDate)
+        {
+            DeliveryDate = newDate;
+            OnDeliveryDateChanged(deliveryDate);
+        }
+
+        public void UpdateOrderStatus(OrderState newStatus)
+        {
+            OrderStatus = newStatus;
+            OnStateChanged(newStatus);
+        }
+
         public ProductionOrder(string partCode, string partDescription, int qty, string customerOrderRef, int defaultProdUnit, string moldID, string moldLocation, string moldNotes, string customerName,string deliveryFacility, string deliveryDate, int DBId=-1, OrderState state=OrderState.Imported)
         {
             try
@@ -224,17 +362,6 @@ namespace ServerPMS
                 throw;
             }
 
-        }
-
-        public void OnStateChanged()
-        {
-            StateChangedHandler?.Invoke(this, OrderStatus);
-        }
-
-        public void ChangeState(OrderState newState)
-        {
-            OrderStatus = newState;
-            OnStateChanged();
         }
 
         public override string ToString()
