@@ -10,10 +10,14 @@ using ServerPMS.Abstractions.Managers;
 using ServerPMS.Infrastructure.External;
 using ServerPMS.Abstractions.Infrastructure.Concurrency;
 using ServerPMS.Abstractions.Infrastructure.Database;
+using ServerPMS.Abstractions.Users;
+using ServerPMS.Users;
+using ServerPMS.Infrastructure.ClientCommunication;
+using System.Collections;
 
 namespace ServerPMS.Managers
 {
-    public class OrdersManager : IOrdersManager
+    public class OrdersManager : IOrdersManager, IEnumerable<ProductionOrder>
     {
 
         //DBAs
@@ -22,6 +26,7 @@ namespace ServerPMS.Managers
         private readonly IGlobalIDsManager GlobalIDsManager;
         private readonly ILogger<OrdersManager> Logger;
         private readonly IResourceMapper Mapper;
+        private readonly IUserManager UserManager;
 
         //main order buffer
         OrdersBuffer buffer;
@@ -39,13 +44,14 @@ namespace ServerPMS.Managers
 
         public ProductionOrder this[string runtimeID] => buffer[indexLookupTable[runtimeID]];
 
-        public OrdersManager(ICommandDBAccessor CDBA, IQueryDBAccessor QDBA,IGlobalIDsManager globalIDsManager,ILogger<OrdersManager> logger, IResourceMapper mapper)
+        public OrdersManager(ICommandDBAccessor CDBA, IQueryDBAccessor QDBA,IGlobalIDsManager globalIDsManager,ILogger<OrdersManager> logger, IResourceMapper mapper, IUserManager userManager)
         {
             CmdDBA = CDBA;
             QueryDBA = QDBA;
             GlobalIDsManager = globalIDsManager;
             Logger = logger;
             Mapper = mapper;
+            UserManager = userManager;
             indexLookupTable = new Dictionary<string, int>();
 
             buffer = new OrdersBuffer(GlobalIDsManager,Mapper);
@@ -55,6 +61,18 @@ namespace ServerPMS.Managers
 
                 //reference the method to call when the order state changes
                 order.StateChangedHandler += StateEventDispatcher;
+                order.PropertyChangedHandler += (object sender, string user) => UserManager.NewOperation(new UserOperationDescriptor(user, UserOperationType.EditOrderDetails, order.RuntimeID));
+                //add ref to DB updates helper methods 
+                order.PartCodeChangedHandler += (object sender, string value) => _ = UpdatePartCodeDB((sender as ProductionOrder).RuntimeID, value);
+                order.PartDescriptionChangedHandler += (object sender, string value) => _ = UpdatePartDescDB((sender as ProductionOrder).RuntimeID, value);
+                order.QtyChangedHandler += (object sender, int value) => _ = UpdateQtycDB((sender as ProductionOrder).RuntimeID, value);
+                order.CustomerOrderRefChangedHandler += (object sender, string value) => _ = UpdateCustomerOrderRefDB((sender as ProductionOrder).RuntimeID, value);
+                order.MoldIDChangedHandler += (object sender, string value) => _ = UpdateMoldIDDB((sender as ProductionOrder).RuntimeID, value);
+                order.MoldLocationChangedHandler += (object sender, string value) => _ = UpdateMoldLocationDB((sender as ProductionOrder).RuntimeID, value);
+                order.MoldNotesChangedHandler += (object sender, string value) => _ = UpdateMoldNotesDB((sender as ProductionOrder).RuntimeID, value);
+                order.CustomerNameChangedHandler += (object sender, string value) => _ = UpdateCustomerNameDB((sender as ProductionOrder).RuntimeID, value);
+                order.DeliveryFacilityChangedHandler += (object sender, string value) => _ = UpdateDeliveryFacilityDB((sender as ProductionOrder).RuntimeID, value);
+                order.DeliveryDateChangedHandler += (object sender, DateOnly value) => _ = UpdateDeliveryDateDB((sender as ProductionOrder).RuntimeID, value);
 
                 //add entry on lookup table
                 indexLookupTable.Add(order.RuntimeID, buffer.IndexOf(order));
@@ -124,6 +142,117 @@ namespace ServerPMS.Managers
                     break;
             }
         }
+        #endregion
+
+        #region DB Update Operations
+
+        public Task UpdatePartCodeDB(string runtimeID, string newPartCode)
+        {
+            if (!string.IsNullOrWhiteSpace(newPartCode))
+            {
+                int DBId = GlobalIDsManager.GetOrderDBID(runtimeID);
+                Task execution = CmdDBA.EnqueueSql($"UPDATE prod_orders SET part_code = \"{newPartCode}\" WHERE id = {DBId};");
+                return execution;
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task UpdatePartDescDB(string runtimeID, string newPartDesc)
+        {
+            if (!string.IsNullOrWhiteSpace(newPartDesc))
+            {
+                int DBId = GlobalIDsManager.GetOrderDBID(runtimeID);
+                Task execution = CmdDBA.EnqueueSql($"UPDATE prod_orders SET part_desc = \"{newPartDesc}\" WHERE id = {DBId};");
+                return execution;
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateQtycDB(string runtimeID, int newQty)
+        {
+            if (newQty > 0)
+            {
+                int DBId = GlobalIDsManager.GetOrderDBID(runtimeID);
+                Task execution = CmdDBA.EnqueueSql($"UPDATE prod_orders SET qty = {newQty} WHERE id = {DBId};");
+                return execution;
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateCustomerOrderRefDB(string runtimeID, string newCustomerOrderRef)
+        {
+            if (!string.IsNullOrWhiteSpace(newCustomerOrderRef))
+            {
+                int DBId = GlobalIDsManager.GetOrderDBID(runtimeID);
+                Task execution = CmdDBA.EnqueueSql($"UPDATE prod_orders SET customer_ord_ref = \"{newCustomerOrderRef}\" WHERE id = {DBId};");
+                return execution;
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateMoldIDDB(string runtimeID, string newMoldID)
+        {
+            if (!string.IsNullOrWhiteSpace(newMoldID))
+            {
+                int DBId = GlobalIDsManager.GetOrderDBID(runtimeID);
+                Task execution = CmdDBA.EnqueueSql($"UPDATE prod_orders SET mold_id = \"{newMoldID}\" WHERE id = {DBId};");
+                return execution;
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateMoldLocationDB(string runtimeID, string newMoldLocation)
+        {
+            if (!string.IsNullOrWhiteSpace(newMoldLocation))
+            {
+                int DBId = GlobalIDsManager.GetOrderDBID(runtimeID);
+                Task execution = CmdDBA.EnqueueSql($"UPDATE prod_orders SET mold_location = \"{newMoldLocation}\" WHERE id = {DBId};");
+                return execution;
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateMoldNotesDB(string runtimeID, string newMoldNotes)
+        {
+            if (!string.IsNullOrWhiteSpace(newMoldNotes))
+            {
+                int DBId = GlobalIDsManager.GetOrderDBID(runtimeID);
+                Task execution = CmdDBA.EnqueueSql($"UPDATE prod_orders SET mold_notes = \"{newMoldNotes}\" WHERE id = {DBId};");
+                return execution;
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateCustomerNameDB(string runtimeID, string newCustomerName)
+        {
+            if (!string.IsNullOrWhiteSpace(newCustomerName))
+            {
+
+                int DBId = GlobalIDsManager.GetOrderDBID(runtimeID);
+                Task execution = CmdDBA.EnqueueSql($"UPDATE prod_orders SET customer_name = \"{newCustomerName}\" WHERE id = {DBId};");
+                return execution;
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateDeliveryFacilityDB(string runtimeID, string newDeliveryFacility)
+        {
+            if (!string.IsNullOrWhiteSpace(newDeliveryFacility))
+            {
+                int DBId = GlobalIDsManager.GetOrderDBID(runtimeID);
+                Task execution = CmdDBA.EnqueueSql($"UPDATE prod_orders SET delivery_facility = \"{newDeliveryFacility}\" WHERE id = {DBId};");
+                return execution;
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateDeliveryDateDB(string runtimeID, DateOnly newDeliveryDate)
+        {
+            int DBId = GlobalIDsManager.GetOrderDBID(runtimeID);
+            Task execution = CmdDBA.EnqueueSql($"UPDATE prod_orders SET delivery_date = \"{newDeliveryDate.ToShortDateString()}\" WHERE id = {DBId};");
+            return execution;
+        }
+
         #endregion
 
         //set order state in DB 
@@ -264,6 +393,21 @@ namespace ServerPMS.Managers
         {
             buffer.SmartAdd(orders);
             WriteOrdersToDB(orders);
+        }
+
+        public OrdersReport GenerateOrdersReport()
+        {
+            return null;
+        }
+
+        public IEnumerator<ProductionOrder> GetEnumerator()
+        {
+            return ((IEnumerable<ProductionOrder>)OrdersBuffer).GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return ((IEnumerable)OrdersBuffer).GetEnumerator();
         }
     }
 }

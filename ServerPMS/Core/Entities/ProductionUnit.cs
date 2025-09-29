@@ -5,33 +5,36 @@
 //
 
 using System.Collections;
+using System.CodeDom;
 using ServerPMS.Infrastructure.Database;
 using ServerPMS.Infrastructure.Generic;
 namespace ServerPMS
 {
-    public class ProductionUnit:IDBIdentifiable
+    public class ProductionUnit : IDBIdentifiable
     {
 
-        public int DBId { set; get; }
-        public event EventHandler UnitStartHandler;
-        public event EventHandler UnitStopHandler;
-        public event EventHandler UnitChangeOverHandler;
+        public int DBId { private set; get; }
+        public string RuntimeID { private set; get; }
+        public event EventHandler<string> UnitStartHandler;
+        public event EventHandler<string> UnitStopHandler;
+        public event EventHandler<string> UnitChangeOverHandler;
         public event EventHandler<string> UnitNotesUpdateHandler;
+        public event EventHandler<string> UnitNameChangedHandler;
 
 
-        protected void OnUnitStop(EventArgs args)
+        protected void OnUnitStop(string userId)
         {
             if (UnitStopHandler != null)
             {
-                UnitStopHandler(this,args);
+                UnitStopHandler(this, userId);
             }
         }
 
-        protected void OnUnitStart(EventArgs args)
+        protected void OnUnitStart(string userId)
         {
             if (UnitStartHandler != null)
             {
-                UnitStartHandler(this, args);
+                UnitStartHandler(this, userId);
             }
         }
 
@@ -40,12 +43,17 @@ namespace ServerPMS
             UnitNotesUpdateHandler?.Invoke(this, notes);
         }
         
-        protected void OnUnitChangeOver(EventArgs args)
+        protected void OnUnitChangeOver(string userId)
         {
             if (UnitChangeOverHandler != null)
             {
-                UnitChangeOverHandler(this, args);
+                UnitChangeOverHandler(this, userId);
             }
+        }
+
+        protected void OnUnitNameChanged(string name)
+        {
+            UnitNameChangedHandler?.Invoke(this, name);
         }
 
 
@@ -100,9 +108,10 @@ namespace ServerPMS
             }
         }
 
-        public ProductionUnit(int dbId, string name, UnitType type, string notes, UnitQueue? queue = null) //la produzione corrente viene SEMPRE rimossa dalla coda all'avvio della suddeta
+        public ProductionUnit(int dbId, string runtimeID, string name, UnitType type, string notes, UnitQueue? queue = null) //la produzione corrente viene SEMPRE rimossa dalla coda all'avvio della suddeta
         {
             DBId = dbId;
+            RuntimeID = runtimeID;
             Notes = notes;
             UnitStatus = UnitState.Standby;
             UnitType = type;
@@ -125,28 +134,33 @@ namespace ServerPMS
 
         //todo: check production lifetime cycle from unit control panel
 
-        public void Start()
+        public void Start(string userID)
         {
             UnitStatus = UnitState.Running;
-            OnUnitStart(EventArgs.Empty);
+            OnUnitStart(userID);
         }
 
-        public void Stop()
+        public void Stop(string userID)
         {
             UnitStatus = UnitState.Standby;
-            OnUnitStop(EventArgs.Empty);
+            OnUnitStop(userID);
         }
 
-        public void ChangeOver()
+        public void ChangeOver(string userID)
         {
             UnitStatus = UnitState.ChangeOver;
-            OnUnitChangeOver(EventArgs.Empty);
+            OnUnitChangeOver(userID);
 
         }
 
         public string ToInfo()
         {
             return string.Format("DBID: {0} Notes: {1} Unit Type: {2}\nStatus: {3} \nQueue:\n{4}", DBId, Notes, UnitType, UnitStatus,QueueID);
+        }
+
+        public override string ToString()
+        {
+            return $"{DBId}${RuntimeID}${Name}${Notes}${QueueID}${(int)UnitType}${(int)UnitStatus}";
         }
     }
 }

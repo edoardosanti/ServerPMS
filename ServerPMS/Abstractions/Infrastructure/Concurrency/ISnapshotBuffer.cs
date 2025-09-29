@@ -3,9 +3,11 @@ namespace ServerPMS.Abstractions.Infrastructure.Concurrency
 {
 	public interface ISnapshotBuffer
 	{
-		Snapshot GetLastSnapshot(string uniqueResourceId);
+		Snapshot? GetLastSnapshot(string uniqueResourceId);
 		Snapshot? GetSnapshot(string uniqueResourceId, DateTime timestamp);
 		void NewSnapshot(string resourceID, object value);
+		void ClearSnapshots(string resourceID);
+		void RemoveSnapshot(Snapshot snapshot);
 
     }
 }

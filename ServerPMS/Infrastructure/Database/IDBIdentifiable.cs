@@ -7,7 +7,7 @@ namespace ServerPMS.Infrastructure.Database
 {
     public interface IDBIdentifiable
     {
-        int DBId { set; get; }
+        int DBId { get; }
     }
 }
 

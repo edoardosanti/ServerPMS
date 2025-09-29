@@ -25,11 +25,12 @@ namespace ServerPMS.Infrastructure.ClientCommunication
             ReqID = Guid.NewGuid();
         }
     }
-    public class CommandRouter :BackgroundService, ICommandRouter
+    public class CommandRouter : BackgroundService, ICommandRouter
     {
         private readonly IConcurrencyManager concurrencyManager;
         private readonly IMessageFactory msgFactory;
         private readonly ILogger<CommandRouter> logger;
+        private readonly IFeedManager feedManager;
 
         private CancellationTokenSource cts;
 
@@ -38,11 +39,12 @@ namespace ServerPMS.Infrastructure.ClientCommunication
         private Queue<BlockingOperationRequest<UnitsBlockingOperations>> UnitsBOT;
 
 
-        public CommandRouter(ILogger<CommandRouter> logger, IConcurrencyManager concurrencyManager, IMessageFactory messageFactory)
+        public CommandRouter(ILogger<CommandRouter> logger, IConcurrencyManager concurrencyManager, IFeedManager feedManager, IMessageFactory messageFactory)
         {
             msgFactory = messageFactory;
             this.concurrencyManager = concurrencyManager;
             this.logger = logger;
+            this.feedManager = feedManager;
             OrdersBOT = new Queue<BlockingOperationRequest<OrdersBlockingOperations>>();
             QueuesBOT = new Queue<BlockingOperationRequest<QueuesBlockingOperations>>();
             UnitsBOT = new Queue<BlockingOperationRequest<UnitsBlockingOperations>>();
@@ -60,10 +62,29 @@ namespace ServerPMS.Infrastructure.ClientCommunication
                     _ = EnqueueQueueBlockingOperationRequest(handler, decodedPayload);
                     break;
                 case (byte)CID.SET_DATA_UNITS:
-                    _ = EnqueueUnitsBlockingOperationRequest(handler,decodedPayload);
+                    _ = EnqueueUnitsBlockingOperationRequest(handler, decodedPayload);
+                    break;
+                case (byte)CID.GET_SNAPSHOT:
+                    break;
+                case (byte)CID.GET_DATA_SYSTEM:
+                    break;
+                case (byte)CID.SUBSCRIBE_FEED:
+                    if (decodedPayload.Contains('O'))
+                        _ = feedManager.SubscribeChannelOrdersAsync(handler.ID);
+                    if (decodedPayload.Contains('U'))
+                        _ = feedManager.SubscribeChannelUnitsAsync(handler.ID);
+                    if (decodedPayload.Contains('Q'))
+                        _ = feedManager.SubscribeChannelQueuesAsync(handler.ID);
+                    break;
+                case (byte)CID.UNSUBSCRIBE_FEED:
+                    if (decodedPayload.Contains('O'))
+                        _ = feedManager.UnsubscribeChannelOrdersAsync(handler.ID);
+                    if (decodedPayload.Contains('U'))
+                        _ = feedManager.UnsubscribeChannelUnitsAsync(handler.ID);
+                    if (decodedPayload.Contains('Q'))
+                        _ = feedManager.UnsubscribeChannelQueuesAsync(handler.ID);
                     break;
 
-                    //aggiungere gestione op non bloccanti
             }
         }
 
@@ -91,18 +112,23 @@ namespace ServerPMS.Infrastructure.ClientCommunication
             }
         }
 
+        #region Blocking Operations
+
         private Task EnqueueUnitsBlockingOperationRequest(ClientHandler handler, string request)
         {
-            //sample command: us@{unit id}#{new status}
+            //sample command: {user}^us@{unit id}#{new status}
             //update status on unit {unit id} to {new status}
 
             UnitsBlockingOperations op;
 
             switch (request)
             {
-                case string r when r.ElementAt(2) == '@':
+                case string r when r.Split("^")[1].ElementAt(2) == '@':
                     try
                     {
+                        string user = r.Split("^")[0];
+                        r = r.Split("^")[1];
+
                         int atIndex = 2;
                         int hashIndex = r.IndexOf("#");
 
@@ -120,7 +146,7 @@ namespace ServerPMS.Infrastructure.ClientCommunication
                         BlockingOperationRequest<UnitsBlockingOperations> bOp = new BlockingOperationRequest<UnitsBlockingOperations>()
                         {
                             Operation = op,
-                            Value = new object[] { unitId, status },
+                            Value = new object[] { user, unitId, status },
                             RequestingHandler = handler
                         };
 
@@ -138,17 +164,19 @@ namespace ServerPMS.Infrastructure.ClientCommunication
 
         private Task EnqueueQueueBlockingOperationRequest(ClientHandler handler, string request)
         {
-            //sample command: mu@{queue id}#{order id}
+            //sample command: {user}^mu@{queue id}#{order id}
             //move up order with id == id1 
 
             QueuesBlockingOperations op;
 
             switch (request)
             {
-                case string r when r.ElementAt(2) == '@':
-
+                case string r when r.Split("^")[1].ElementAt(2) == '@':
                     try
                     {
+                        string user = r.Split("^")[0];
+                        r = r.Split("^")[1];
+
                         int atIndex = 2;
                         int hashIndex = r.IndexOf("#");
 
@@ -169,7 +197,7 @@ namespace ServerPMS.Infrastructure.ClientCommunication
                         BlockingOperationRequest<QueuesBlockingOperations> bOp = new BlockingOperationRequest<QueuesBlockingOperations>()
                         {
                             Operation = op,
-                            Value = new string[] { queueId, orderId },
+                            Value = new string[] { user, queueId, orderId },
                             RequestingHandler = handler
                         };
 
@@ -187,17 +215,21 @@ namespace ServerPMS.Infrastructure.ClientCommunication
 
         private Task EnqueueOrderBlockingOperationRequest(ClientHandler handler, string request)
         {
-            //sample command: u@{id}#cn!Nupi Industrie Italiane SpA
+            //sample command: {user}^u@{id}#cn!Nupi Industrie Italiane SpA
             //update customer name to Nupi..
 
             OrdersBlockingOperations op;
 
+
             switch (request)
             {
-                case string r when r.StartsWith("u@"):
-                    r = r.Replace("u@", "");
+                case string r when r.Split("^")[1].StartsWith("u@"):
                     try
                     {
+
+                        string[] tmp = r.Split("^");
+                        string user = tmp[0];
+                        r = tmp[1].Replace("u@", "");
 
                         string id, cmd, args;
                         int hashIndex = r.IndexOf('#');
@@ -230,9 +262,9 @@ namespace ServerPMS.Infrastructure.ClientCommunication
                         BlockingOperationRequest<OrdersBlockingOperations> bOp = new BlockingOperationRequest<OrdersBlockingOperations>()
                         {
                             Operation = op,
-                            Value = new string[] { id, args },
+                            Value = new string[] { user, id, args },
                             RequestingHandler = handler
-                            
+
                         };
 
                         OrdersBOT.Enqueue(bOp);
@@ -243,19 +275,26 @@ namespace ServerPMS.Infrastructure.ClientCommunication
                         throw new InvalidOperationException("No arguments provided.");
                     }
 
-                case string r when r.StartsWith("a!"):
+                case string r when r.Split("^")[1].StartsWith("i!"):
 
-                    //sample command i!order1|order2|order3
+                    //sample command {user}^i!order1|order2|order3
 
-                    r = r.Replace("i!", "");
-                    string[] dumps = r.Split("|");
-                    if (dumps.Length == 0)
+                    string[] tmp2 = r.Split("^");
+                    string user2 = tmp2[0];
+                    r = tmp2[1].Replace("i!", "");
+
+
+                    List<string> dumps = new List<string>();
+                    dumps.Add(user2);
+                    dumps.Concat(r.Split("|"));
+                   
+                    if (dumps.Count == 1)
                         throw new InvalidOperationException("No orders found.");
 
                     BlockingOperationRequest<OrdersBlockingOperations> bOp2 = new BlockingOperationRequest<OrdersBlockingOperations>()
                     {
                         Operation = OrdersBlockingOperations.Import,
-                        Value = dumps
+                        Value = dumps.ToArray()
                     };
 
                     OrdersBOT.Enqueue(bOp2);
@@ -277,8 +316,9 @@ namespace ServerPMS.Infrastructure.ClientCommunication
                     //checks if the resource is used from someone else and proceed only if avaible
 
                     BlockingOperationRequest<QueuesBlockingOperations> request = QueuesBOT.Peek();
-                    string queueID = (request.Value as string[])?[0]; //parse queue id 
-                    string orderID = (request.Value as string[])?[1]; //parse order id
+                    string userID = (request.Value as string[])?[0]; //parse user id
+                    string queueID = (request.Value as string[])?[1]; //parse queue id 
+                    string orderID = (request.Value as string[])?[2]; //parse order id
 
                     AccessToken at = await concurrencyManager.AccessIEMAsync(request.RequestingHandler);
 
@@ -325,8 +365,9 @@ namespace ServerPMS.Infrastructure.ClientCommunication
                     //checks if the resource is used from someone else and proceed only if avaible
 
                     BlockingOperationRequest<UnitsBlockingOperations> request = UnitsBOT.Peek();
-                    string unitID = (request.Value as string[])?[0]; //parse unit id 
-                    string param = (request.Value as string[])?[1]; //parse param 
+                    string userID = (request.Value as string[])?[0];  //parse user id
+                    string unitID = (request.Value as string[])?[2]; //parse unit id 
+                    string param = (request.Value as string[])?[3]; //parse param 
 
                     AccessToken at = await concurrencyManager.AccessResourceAsync(request.RequestingHandler, unitID);
 
@@ -341,13 +382,13 @@ namespace ServerPMS.Infrastructure.ClientCommunication
                                 switch (param)
                                 {
                                     case "0":
-                                        unit.Stop();
+                                        unit.Stop(userID);
                                         break;
                                     case "1":
-                                        unit.Start();
+                                        unit.Start(userID);
                                         break;
                                     case "2":
-                                        unit.ChangeOver();
+                                        unit.ChangeOver(userID);
                                         break;
                                 }
                                 break;
@@ -370,36 +411,38 @@ namespace ServerPMS.Infrastructure.ClientCommunication
             {
                 await Task.Yield();
 
-                if(OrdersBOT.Count > 0)
+                if (OrdersBOT.Count > 0)
                 {
                     //checks if the resource is used from someone else and proceed only if avaible
 
                     BlockingOperationRequest<OrdersBlockingOperations> request = OrdersBOT.Peek();
                     AccessToken at;
-                    string[] dumps = request.Value as string[];  
-
+                    string[] dumps = request.Value as string[];
+                   
                     switch (request.Operation)
                     {
                         case OrdersBlockingOperations.Import:
+                            string[] importsID = dumps.Skip(0).ToArray();
                             at = await concurrencyManager.AccessOrdersManagerAsync(request.RequestingHandler);
+                            IOrdersManager manager = at.Resource as IOrdersManager;
                             request = OrdersBOT.Dequeue();
 
-                            IOrdersManager manager = at.Resource as IOrdersManager;
-
                             List<ProductionOrder> imports = new List<ProductionOrder>();
-                            foreach (string dump in dumps)
+                            foreach (string id in importsID)
                             {
-                                imports.Add(ProductionOrder.FromDump(dump));
+                                imports.Add(ProductionOrder.FromDump(id));
                             }
                             manager.Import(imports);
 
                             break;
 
                         default:
-                            //throw new InvalidDataException(); -> non rilevata 
-                            at = await concurrencyManager.AccessResourceAsync(request.RequestingHandler, dumps[0]);  //FIXME: probabile eccezione non gestita
+                            //throw new InvalidDataException(); -> non rilevata
+                            string user = dumps[0];
+                            at = await concurrencyManager.AccessResourceAsync(request.RequestingHandler, dumps[1]);  
                             if (at.AccessMode.Equals(AccessMode.ReadWrite))
                             {
+                                request = OrdersBOT.Dequeue();
                                 ProductionOrder order = at.Resource as ProductionOrder; //get ptr to resource
                                 switch (request.Operation)
                                 {
@@ -407,37 +450,37 @@ namespace ServerPMS.Infrastructure.ClientCommunication
                                         break;
                                     default:
                                         string param = string.Empty;
-                                        if (dumps.Length == 2) //mezzo inutile (probabile residuo di v1)
-                                            param = dumps[1];
+                                        if (dumps.Length == 3) //mezzo inutile (probabile residuo di v1)
+                                            param = dumps[2];
 
                                         switch (request.Operation)
                                         {
                                             case OrdersBlockingOperations.UpdatePartCode:
-                                                order.UpdatePartCode(param);
+                                                order.UpdatePartCode(param, user);
                                                 break;
                                             case OrdersBlockingOperations.UpdateDescription:
-                                                order.UpdatePartDescription(param);
+                                                order.UpdatePartDescription(param,user);
                                                 break;
                                             case OrdersBlockingOperations.UpdateQty:
-                                                order.UpdateQty(int.Parse(param));
+                                                order.UpdateQty(int.Parse(param),user);
                                                 break;
                                             case OrdersBlockingOperations.UpdateMoldID:
-                                                order.UpdateMoldID(param);
+                                                order.UpdateMoldID(param,user);
                                                 break;
                                             case OrdersBlockingOperations.UpdateMoldPosition:
-                                                order.UpdateMoldLocation(param);
+                                                order.UpdateMoldLocation(param,user);
                                                 break;
                                             case OrdersBlockingOperations.UpdateDeliveryFacility:
-                                                order.UpdateDeliveryFacility(param);
+                                                order.UpdateDeliveryFacility(param,user);
                                                 break;
                                             case OrdersBlockingOperations.UpdateDeliveryDate:
-                                                order.UpdateDeliveryDate(param);
+                                                order.UpdateDeliveryDate(param,user);
                                                 break;
                                             case OrdersBlockingOperations.UpdateNotes:
-                                                order.UpdateMoldNotes(param);
+                                                order.UpdateMoldNotes(param,user);
                                                 break;
                                             case OrdersBlockingOperations.UpdateCustomerName:
-                                                order.UpdateCustomerName(param);
+                                                order.UpdateCustomerName(param,user);
                                                 break;
                                         }
                                         break;
@@ -446,7 +489,7 @@ namespace ServerPMS.Infrastructure.ClientCommunication
 
                             break;
                     }
-                    concurrencyManager.ReleaseResource(at);
+                    concurrencyManager.ReleaseResource(at); //checkpoint
                 }
                 else
                     await Task.Delay(1000);
@@ -463,31 +506,27 @@ namespace ServerPMS.Infrastructure.ClientCommunication
 
             //start long running tasks
             Task OrdersLoop = Task.Factory.StartNew(
-                async () =>
-                {
-                    try
-                    {
-                        await OrdersBlockingLoopAsync();
-                    }
-                    catch { throw; }
-                },
+                OrdersBlockingLoopAsync,
                 cts.Token,
                 TaskCreationOptions.LongRunning,
                 TaskScheduler.Default);
 
-            Task UnitsLoop = Task.Factory.StartNew(UnitsBlockingLoopAsync,
-                      cts.Token,
-                      TaskCreationOptions.LongRunning,
-                      TaskScheduler.Default);
+            Task UnitsLoop = Task.Factory.StartNew(
+                UnitsBlockingLoopAsync,
+                cts.Token,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
 
             Task QueuesLoop = Task.Factory.StartNew(QueuesBlockingLoopAsync,
-                      cts.Token,
-                      TaskCreationOptions.LongRunning,
-                      TaskScheduler.Default);
+                cts.Token,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
 
             logger.LogInformation("Command router service started.");
 
             await Task.WhenAll(OrdersLoop, UnitsLoop, QueuesLoop);
         }
+
+        #endregion
     }
 }

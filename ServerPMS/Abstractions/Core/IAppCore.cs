@@ -10,7 +10,7 @@ namespace ServerPMS.Abstractions.Core
         public IOrdersManager OrdersManager { get; }
         public IUnitsManager UnitsManger { get; }
         public IQueuesManager QueuesManager { get; }
-        void InitializeWALEnviroment();
+        Task InitializeWALEnviromentAsync();
         Task InitializeManagersAsync();
         Task WALReplayAsync();
         string ToInfo();

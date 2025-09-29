@@ -1,8 +1,9 @@
-﻿using ServerPMS.Infrastructure.Generic;
+﻿using ServerPMS.Infrastructure.ClientCommunication;
+using ServerPMS.Infrastructure.Generic;
 
 namespace ServerPMS.Abstractions.Managers
 {
-    public interface IQueuesManager
+    public interface IQueuesManager: IEnumerable<UnitQueue>
 	{
 		//properties
         UnitQueue this[string runtimeId] { get; }
@@ -14,7 +15,8 @@ namespace ServerPMS.Abstractions.Managers
 		void LoadQueue(string runtimeID);
 		void LoadAll();
 		Task LoadAllAsync();
+        Report GetReport();
 
-	}
+    }
 }
 

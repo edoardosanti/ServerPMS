@@ -12,7 +12,7 @@ using ServerPMS.Abstractions.Infrastructure.Logging;
 using ServerPMS.Abstractions.Infrastructure.Config;
 using ServerPMS.Abstractions.Managers;
 using ServerPMS.Abstractions.Core;
-using ServerPMS.Managers;
+using TextCopy;
 
 namespace ServerPMS.Core
 {
@@ -159,6 +159,9 @@ namespace ServerPMS.Core
             await QueuesMgr.LoadAllAsync();
 
             Console.WriteLine("---------- TEST ID: {0} --------", OrdersMgr.OrdersBuffer[0].RuntimeID); //debug
+            TextCopy.ClipboardService.SetText(OrdersMgr.OrdersBuffer[0].RuntimeID);
+
+
 
             foreach (string runtimeID in QueuesMgr.IDs)
             {
@@ -168,7 +171,7 @@ namespace ServerPMS.Core
         }
         #endregion
 
-        public void InitializeWALEnviroment()
+        public async Task InitializeWALEnviromentAsync()
         {
             //open service connection
             Logger.LogInformation("Opening SQLite service connection");
@@ -180,7 +183,7 @@ namespace ServerPMS.Core
             Logger.LogInformation("Enabling SQLite WAL mode");
 
             using var cmd = new SqliteCommand("PRAGMA journal_mode=WAL;", conn);  //enable Write Ahead Log (WAl) mode
-            cmd.ExecuteNonQuery();
+            await cmd.ExecuteNonQueryAsync();
 
             Logger.LogInformation("Enabling Application-Layer WAL mode");
 

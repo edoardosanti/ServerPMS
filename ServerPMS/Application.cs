@@ -6,6 +6,7 @@ using ServerPMS.Abstractions.Infrastructure.Config;
 using Microsoft.Extensions.DependencyInjection;
 using ServerPMS.Abstractions.Infrastructure.ClientCommunication;
 using ServerPMS.Infrastructure.ClientCommunication;
+using ServerPMS.Abstractions.Users;
 
 namespace ServerPMS
 {
@@ -18,16 +19,18 @@ namespace ServerPMS
         private TcpListener feedListener;
         private TcpListener sysListener;
         private readonly IServiceProvider _serviceProvider;
+        private readonly IUserManager _userManager;
 
         private Task loop;
         private object stateLock;
         private bool state;
 
 
-        public Application(IAppCore core,IConfigCrypto configCrypto,IGlobalConfigManager globalConfigManager, IServiceProvider serviceProvider)
+        public Application(IAppCore core,IConfigCrypto configCrypto,IGlobalConfigManager globalConfigManager, IUserManager userManager, IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
             _appCore = core;
+            _userManager = userManager;
             stateLock = new();
             state = false;
 
@@ -40,7 +43,8 @@ namespace ServerPMS
             try
             {
                 await _appCore.InitializeManagersAsync();
-                _appCore.InitializeWALEnviroment();
+                await _appCore.InitializeWALEnviromentAsync();
+                await _userManager.LoadUsersAsync();
                 Task walReplayTask = _appCore.WALReplayAsync();
 
                 reqListener = new TcpListener(IPAddress.Any, 56000);
@@ -98,7 +102,7 @@ namespace ServerPMS
             {
                 Console.WriteLine("Server started...");
 
-                while (true)
+                while (!stoppingToken.IsCancellationRequested)
                 {
                     Console.WriteLine("Handlers loop iteration start");
                     Task<TcpClient> reqTask = reqListener.AcceptTcpClientAsync();
@@ -124,6 +128,11 @@ namespace ServerPMS
                     SetState(false);
                 }
             }
+            catch(OperationCanceledException coex) 
+            {
+                Console.WriteLine("Application is stopping: {0}", coex.Message);
+            }
+
             catch (Exception ex)
             {
                 SetState(false);

@@ -16,12 +16,17 @@ namespace ServerPMS.Infrastructure.Database
          public Dictionary<string, int> UnitsRTD;
          public Dictionary<int, string> UnitsDTR;
 
+        public Dictionary<string, int> UserRTD;
+        public Dictionary<int, string> UsersDTR;
+
         public GlobalIDsManager()
         {
             OrdersRTD = new Dictionary<string, int>();
             OrdersDTR = new Dictionary<int, string>();
             UnitsRTD = new Dictionary<string, int>();
             UnitsDTR = new Dictionary<int, string>();
+            UserRTD = new Dictionary<string, int>();
+            UsersDTR = new Dictionary<int, string>();
         }
 
         public bool RemoveOrderEntry(string runtimeID)
@@ -84,6 +89,38 @@ namespace ServerPMS.Infrastructure.Database
         public string GetUnitRuntimeID(int DBId)
         {
             return UnitsDTR[DBId];
+        }
+
+        public void AddUserEntry(string runtimeID, int DBID)
+        {
+            UserRTD.Add(runtimeID, DBID);
+            UsersDTR.Add(DBID, runtimeID);
+        }
+
+        public bool RemoveUserEntry(string runtimeID)
+        {
+            try
+            {
+
+                UsersDTR.Remove(UserRTD[runtimeID]);
+                UserRTD.Remove(runtimeID);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+
+        }
+
+        public string GetUserRuntimeID(int DBid)
+        {
+            return UsersDTR[DBid];
+        }
+
+        public int GetUserDBID(string runtimeID)
+        {
+            return UserRTD[runtimeID];
         }
     }
 }

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "utj5GYl+85QPtisdjfWwc0MWL1sS2nHK4ABVg7NJLvC8oQlNZxsGwcMP2sE6FfHtQKTpdn4LemO5QZhyvlxahw==",
+  "dgSpecHash": "DVVQH0Mi7ChPlAEwcP9qcEgl5ZFbQeou+rvYY/dJL2hGDPceZt5YfF2eGhltXTA9g/ovbtlbibcec7wndMQ/Lw==",
   "success": true,
   "projectFilePath": "/Users/edoardosanti/Projects/ServerPMS/PMSConfigurationUtilities/PMSConfigurationUtilities.csproj",
   "expectedPackageFiles": [
@@ -54,7 +54,8 @@
     "/Users/edoardosanti/.nuget/packages/system.io.pipelines/9.0.9/system.io.pipelines.9.0.9.nupkg.sha512",
     "/Users/edoardosanti/.nuget/packages/system.memory/4.5.3/system.memory.4.5.3.nupkg.sha512",
     "/Users/edoardosanti/.nuget/packages/system.text.encodings.web/9.0.9/system.text.encodings.web.9.0.9.nupkg.sha512",
-    "/Users/edoardosanti/.nuget/packages/system.text.json/9.0.9/system.text.json.9.0.9.nupkg.sha512"
+    "/Users/edoardosanti/.nuget/packages/system.text.json/9.0.9/system.text.json.9.0.9.nupkg.sha512",
+    "/Users/edoardosanti/.nuget/packages/textcopy/6.2.1/textcopy.6.2.1.nupkg.sha512"
   ],
   "logs": []
 }

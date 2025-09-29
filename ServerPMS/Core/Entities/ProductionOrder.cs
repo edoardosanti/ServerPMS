@@ -20,55 +20,66 @@ namespace ServerPMS
         public event EventHandler<string> CustomerNameChangedHandler;
         public event EventHandler<string> DeliveryFacilityChangedHandler;
         public event EventHandler<DateOnly> DeliveryDateChangedHandler;
+        public event EventHandler<string> PropertyChangedHandler;
 
 
-        protected void OnPartCodeChanged(string newPartCode)
+        protected void OnPartCodeChanged(string newPartCode, string userId)
         {
+            PropertyChangedHandler?.Invoke(this, userId);
             PartCodeChangedHandler?.Invoke(this, newPartCode);
         }
 
-        protected void OnPartDesChanged(string newPartDes)
+        protected void OnPartDesChanged(string newPartDes, string userId)
         {
+            PropertyChangedHandler?.Invoke(this, userId);
             PartDescriptionChangedHandler?.Invoke(this, newPartDes);
         }
 
-        protected void OnQtyChanged(int newQty)
+        protected void OnQtyChanged(int newQty, string userId)
         {
+            PropertyChangedHandler?.Invoke(this, userId);
             QtyChangedHandler?.Invoke(this, newQty);
         }
 
-        protected void OnCustomerRefChanged(string newRef)
+        protected void OnCustomerRefChanged(string newRef, string userId)
         {
+            PropertyChangedHandler?.Invoke(this, userId);
             CustomerOrderRefChangedHandler?.Invoke(this, newRef);
         }
 
-        protected void OnMoldIDChanged(string newMoldID)
+        protected void OnMoldIDChanged(string newMoldID, string userId)
         {
+            PropertyChangedHandler?.Invoke(this, userId);
             MoldIDChangedHandler?.Invoke(this, newMoldID);
         }
 
-        protected void OnMoldLocationChanged(string newLocation)
+        protected void OnMoldLocationChanged(string newLocation, string userId)
         {
+            PropertyChangedHandler?.Invoke(this, userId);
             MoldLocationChangedHandler?.Invoke(this, newLocation);
         }
 
-        protected void OnMoldNotesChanged(string newNotes)
+        protected void OnMoldNotesChanged(string newNotes, string userId)
         {
+            PropertyChangedHandler?.Invoke(this, userId);
             MoldNotesChangedHandler?.Invoke(this, newNotes);
         }
 
-        protected void OnCustomerNameChanged(string newCustomerName)
+        protected void OnCustomerNameChanged(string newCustomerName, string userId)
         {
+            PropertyChangedHandler?.Invoke(this, userId);
             CustomerNameChangedHandler?.Invoke(this, newCustomerName);
         }
 
-        protected void OnDeliveryFacilityChanged(string newFacility)
+        protected void OnDeliveryFacilityChanged(string newFacility, string userId)
         {
+            PropertyChangedHandler?.Invoke(this, userId);
             DeliveryFacilityChangedHandler?.Invoke(this, newFacility);
         }
 
-        protected void OnDeliveryDateChanged(DateOnly newDate)
+        protected void OnDeliveryDateChanged(DateOnly newDate, string userId)
         {
+            PropertyChangedHandler?.Invoke(this, userId);
             DeliveryDateChangedHandler?.Invoke(this, newDate);
         }
 
@@ -266,70 +277,71 @@ namespace ServerPMS
             get { return dateAdded.ToShortDateString(); }
         }
 
-        public void UpdatePartCode(string newPartCode)
+        public void UpdatePartCode(string newPartCode, string userId)
         {
             PartCode = newPartCode;
-            OnPartCodeChanged(newPartCode);
+            OnPartCodeChanged(newPartCode,userId);
         }
 
-        public void UpdatePartDescription(string newDescription)
+        public void UpdatePartDescription(string newDescription, string userId)
         {
             PartDescription = newDescription;
-            OnPartDesChanged(newDescription);
+            OnPartDesChanged(newDescription,userId);
         }
 
-        public void UpdateQty(int newQty)
+        public void UpdateQty(int newQty, string userId)
         {
             Qty = newQty;
-            OnQtyChanged(newQty);
+            OnQtyChanged(newQty,userId);
         }
 
-        public void UpdateCustomerOrderRef(string newRef)
+        public void UpdateCustomerOrderRef(string newRef, string userId)
         {
             CustomerOrderRef = newRef;
-            OnCustomerRefChanged(newRef);
+            OnCustomerRefChanged(newRef,userId);
         }
 
-        public void UpdateDefaultProductionUnit(int newUnit)
+        public void UpdateDefaultProductionUnit(int newUnit, string userId)
         {
             DefaultProductionUnit = newUnit;
             // No event defined for DefaultProductionUnit
         }
 
-        public void UpdateMoldID(string newMoldID)
+        public void UpdateMoldID(string newMoldID, string userId)
         {
             MoldID = newMoldID;
-            OnMoldIDChanged(newMoldID);
+            OnMoldIDChanged(newMoldID,userId);
         }
 
-        public void UpdateMoldLocation(string newLocation)
+        public void UpdateMoldLocation(string newLocation, string userId)
         {
             MoldLocation = newLocation;
-            OnMoldLocationChanged(newLocation);
+            OnMoldLocationChanged(newLocation,userId);
         }
 
-        public void UpdateMoldNotes(string newNotes)
-        {
+        public void UpdateMoldNotes(string newNotes, string userId)
+        { 
+
             MoldNotes = newNotes;
-            OnMoldNotesChanged(newNotes);
+            OnMoldNotesChanged(newNotes,userId);
         }
 
-        public void UpdateCustomerName(string newCustomerName)
+        public void UpdateCustomerName(string newCustomerName, string userId)
         {
             CustomerName = newCustomerName;
-            OnCustomerNameChanged(newCustomerName);
+            OnCustomerNameChanged(newCustomerName,userId);
         }
 
-        public void UpdateDeliveryFacility(string newFacility)
+        public void UpdateDeliveryFacility(string newFacility, string userId)
         {
             DeliveryFacility = newFacility;
-            OnDeliveryFacilityChanged(newFacility);
+            OnDeliveryFacilityChanged(newFacility,userId);
         }
 
-        public void UpdateDeliveryDate(string newDate)
+        public void UpdateDeliveryDate(string newDate, string userId)
         {
             DeliveryDate = newDate;
-            OnDeliveryDateChanged(deliveryDate);
+            OnDeliveryDateChanged(deliveryDate,userId);
         }
 
         public void UpdateOrderStatus(OrderState newStatus)

@@ -39,10 +39,10 @@ namespace ServerPMS.Infrastructure.Logging
         {
             if (!File.Exists(WALFilePath)) yield break;
 
-            using var stream = new FileStream(WALFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            using var reader = new BinaryReader(stream);
+           
+            using var reader = new BinaryReader(_stream);
 
-            while (stream.Position < stream.Length)
+            while (_stream.Position < _stream.Length)
             {
                 int len;
                 byte[] bytes;

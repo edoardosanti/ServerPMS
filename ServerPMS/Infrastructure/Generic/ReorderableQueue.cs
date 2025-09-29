@@ -260,6 +260,15 @@ namespace ServerPMS.Infrastructure.Generic
             return list.GetEnumerator();
         }
         #endregion
+
+        #region ToString
+        public override string ToString()
+        {
+            string s = string.Empty;
+            list.ForEach(i => s += i.ToString()+"*");
+            return s.Substring(0,s.Length-1);
+        }
+        #endregion
     }
 }
 

@@ -29,9 +29,24 @@ namespace ServerPMS.Infrastructure.Concurrency
             snapshotTable.Add(uniqueResourceId, new Snapshot(value));
         }
 
-        public Snapshot GetSnapshot(string uniqueResourceId, DateTime timestamp)
+        public Snapshot? GetSnapshot(string uniqueResourceId, DateTime timestamp)
         {
-            throw new NotImplementedException();
+            return GetLastSnapshot(uniqueResourceId); //todo: add support for multiple snapshot 
+        }
+
+        public void ClearSnapshots(string resourceID)
+        {
+            snapshotTable.Remove(resourceID);
+        }
+
+        public void RemoveSnapshot(Snapshot snapshot)
+        {
+            string id = string.Empty;
+            foreach (KeyValuePair<string,Snapshot> sn in snapshotTable) {
+                if (sn.Value == snapshot)
+                    id = sn.Key;
+            }
+            snapshotTable.Remove(id);
         }
     }
 }

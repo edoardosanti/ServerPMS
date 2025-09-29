@@ -7,17 +7,17 @@
 using System.Collections;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
+using ServerPMS.Users;
+using ServerPMS.Abstractions.Users;
 using ServerPMS.Abstractions.Managers;
 using ServerPMS.Abstractions.Infrastructure.Config;
 using ServerPMS.Abstractions.Infrastructure.Database;
 using ServerPMS.Abstractions.Infrastructure.Concurrency;
-using System.Collections.Generic;
-using System.Net.NetworkInformation;
-using DocumentFormat.OpenXml.ExtendedProperties;
+using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace ServerPMS.Managers
 {
-    public class UnitsManager : IUnitsManager, IDictionary<string, ProductionUnit>
+    public class UnitsManager : IUnitsManager,IEnumerable<ProductionUnit>, IDictionary<string, ProductionUnit>
     {
 
         public event EventHandler<string> NewUnitHandler;
@@ -32,9 +32,10 @@ namespace ServerPMS.Managers
         private readonly IGlobalConfigManager GlobalConfig;
         private readonly IGlobalIDsManager GlobalIDsManager;
         private readonly IResourceMapper Mapper;
+        private readonly IUserManager UserManager;
 
 
-        public UnitsManager(ICommandDBAccessor CDBA, IQueryDBAccessor QDBA,IGlobalIDsManager globalIDManager, IQueuesManager queuesManager, IGlobalConfigManager globalConfig, IResourceMapper mapper)
+        public UnitsManager(ICommandDBAccessor CDBA, IQueryDBAccessor QDBA,IGlobalIDsManager globalIDManager, IQueuesManager queuesManager, IGlobalConfigManager globalConfig, IResourceMapper mapper, IUserManager userManager)
         {
             units = new Dictionary<string, ProductionUnit>();
             queuesLUT = new Dictionary<string, string>();
@@ -47,7 +48,12 @@ namespace ServerPMS.Managers
 
         }
 
-        //TODO: add update status on DB -> unit.OnStateChanged event (implement) 
+        private void _UpdateNameDB(string unitID, string name)
+        {
+            int dbId = GlobalIDsManager.GetUnitDBID(unitID);
+            string sql = string.Format("UPDATE prod_units SET name = {0} WHERE id = {1};", name, dbId);
+            CmdDBA.EnqueueSql(sql);
+        }
 
         private void _UpdateNotesDB(string unitID, string notes)
         {
@@ -86,9 +92,15 @@ namespace ServerPMS.Managers
                     //generate runtimeID
                     string runtimeID = Guid.NewGuid().ToString();
 
-                    //add unit to unit list and lookup table
-                    ProductionUnit unit = new ProductionUnit(DBId, info["name"], (UnitType)int.Parse(info["type"]), info["notes"]);
+                    //add unit to unit list and lookup table    
+                    ProductionUnit unit = new ProductionUnit(DBId,runtimeID, info["name"], (UnitType)int.Parse(info["type"]), info["notes"]);
                     unit.UnitNotesUpdateHandler += (sender, notes) => _UpdateNotesDB(runtimeID,notes); //add event for notes update
+                    unit.UnitNameChangedHandler += (sender, name) => _UpdateNameDB(runtimeID, name);
+                    unit.UnitStartHandler += (sender, user) => UserManager.NewOperation(new UserOperationDescriptor(user, UserOperationType.StartProduction, unitID:runtimeID));
+                    unit.UnitStopHandler += (sender, user) => UserManager.NewOperation(new UserOperationDescriptor(user, UserOperationType.StopProduction, unitID: runtimeID));
+                    unit.UnitChangeOverHandler += (sender, user) => UserManager.NewOperation(new UserOperationDescriptor(user, UserOperationType.Changeover, unitID: runtimeID));
+
+
                     units.Add(runtimeID, unit);
                     OnNewUnit(runtimeID);
 
@@ -116,16 +128,20 @@ namespace ServerPMS.Managers
             NewUnitHandler?.Invoke(this, unitRuntimeID);
         }
 
-        public void Start(string unitRuntimeID)
+        public void Start(string unitRuntimeID,string userID)
         {
-            units[unitRuntimeID].Start();
+            units[unitRuntimeID].Start(userID);
         }
 
-        public void Stop(string unitRuntimeID)
+        public void Stop(string unitRuntimeID, string userID)
         {
-            units[unitRuntimeID].Stop();
+            units[unitRuntimeID].Stop(userID);
         }
 
+        public void Changeover(string unitRuntimeID,string userID)
+        {
+            units[unitRuntimeID].ChangeOver(userID);
+        }
         public string? GetName(string runtimeID)
         {
             try
@@ -158,7 +174,7 @@ namespace ServerPMS.Managers
             }
         }
 
-        #region IDictionary<>
+        #region IDictionary<> and IEnumerable<>
         public ProductionUnit this[string key] { get => ((IDictionary<string, ProductionUnit>)units)[key]; set => ((IDictionary<string, ProductionUnit>)units)[key] = value; }
 
         public ICollection<string> Keys => ((IDictionary<string, ProductionUnit>)units).Keys;
@@ -222,6 +238,11 @@ namespace ServerPMS.Managers
         IEnumerator<KeyValuePair<string, ProductionUnit>> IEnumerable<KeyValuePair<string, ProductionUnit>>.GetEnumerator()
         {
             return ((IEnumerable<KeyValuePair<string, ProductionUnit>>)units).GetEnumerator();
+        }
+
+        public IEnumerator<ProductionUnit> GetEnumerator()
+        {
+            return Values.GetEnumerator();
         }
         #endregion
 

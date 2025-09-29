@@ -10,11 +10,14 @@ using ServerPMS.Abstractions.Managers;
 using ServerPMS.Infrastructure.Generic;
 using ServerPMS.Abstractions.Infrastructure.Database;
 using ServerPMS.Abstractions.Infrastructure.Concurrency;
+using ServerPMS.Infrastructure.ClientCommunication;
+using System.Diagnostics.CodeAnalysis;
+using System.Collections;
 
 namespace ServerPMS.Managers
 {
 
-    public class QueuesManager : IQueuesManager
+    public class QueuesManager : IQueuesManager, IEnumerable<UnitQueue>, IDictionary<string, UnitQueue>
     {
         #region Events Handlers
         public event EventHandler<string> ItemEnqueuedHandler;
@@ -34,6 +37,16 @@ namespace ServerPMS.Managers
 
         public UnitQueue this[string runtimeID] => Queues[runtimeID];
         public IEnumerable<string> IDs => Queues.Keys;
+
+        public ICollection<string> Keys => ((IDictionary<string, UnitQueue>)Queues).Keys;
+
+        public ICollection<UnitQueue> Values => ((IDictionary<string, UnitQueue>)Queues).Values;
+
+        public int Count => ((ICollection<KeyValuePair<string, UnitQueue>>)Queues).Count;
+
+        public bool IsReadOnly => ((ICollection<KeyValuePair<string, UnitQueue>>)Queues).IsReadOnly;
+
+        UnitQueue IDictionary<string, UnitQueue>.this[string key] { get => ((IDictionary<string, UnitQueue>)Queues)[key]; set => ((IDictionary<string, UnitQueue>)Queues)[key] = value; }
 
         #endregion
 
@@ -163,6 +176,71 @@ namespace ServerPMS.Managers
 
             string sql = string.Format("UPDATE unit_queues SET position = {0} WHERE ID = {1};",newPosition, GlobalIDsManager.GetOrderDBID(orderRuntimeID));
             return CmdDBA.EnqueueSql(sql);
+        }
+
+        public Report GetReport()
+        {
+            return null;
+        }
+
+        public void Add(string key, UnitQueue value)
+        {
+            ((IDictionary<string, UnitQueue>)Queues).Add(key, value);
+        }
+
+        public bool ContainsKey(string key)
+        {
+            return ((IDictionary<string, UnitQueue>)Queues).ContainsKey(key);
+        }
+
+        public bool Remove(string key)
+        {
+            return ((IDictionary<string, UnitQueue>)Queues).Remove(key);
+        }
+
+        public bool TryGetValue(string key, [MaybeNullWhen(false)] out UnitQueue value)
+        {
+            return ((IDictionary<string, UnitQueue>)Queues).TryGetValue(key, out value);
+        }
+
+        public void Add(KeyValuePair<string, UnitQueue> item)
+        {
+            ((ICollection<KeyValuePair<string, UnitQueue>>)Queues).Add(item);
+        }
+
+        public void Clear()
+        {
+            ((ICollection<KeyValuePair<string, UnitQueue>>)Queues).Clear();
+        }
+
+        public bool Contains(KeyValuePair<string, UnitQueue> item)
+        {
+            return ((ICollection<KeyValuePair<string, UnitQueue>>)Queues).Contains(item);
+        }
+
+        public void CopyTo(KeyValuePair<string, UnitQueue>[] array, int arrayIndex)
+        {
+            ((ICollection<KeyValuePair<string, UnitQueue>>)Queues).CopyTo(array, arrayIndex);
+        }
+
+        public bool Remove(KeyValuePair<string, UnitQueue> item)
+        {
+            return ((ICollection<KeyValuePair<string, UnitQueue>>)Queues).Remove(item);
+        }
+
+        public IEnumerator<KeyValuePair<string, UnitQueue>> GetEnumerator()
+        {
+            return ((IEnumerable<KeyValuePair<string, UnitQueue>>)Queues).GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return ((IEnumerable)Queues).GetEnumerator();
+        }
+
+        IEnumerator<UnitQueue> IEnumerable<UnitQueue>.GetEnumerator()
+        {
+            return Values.GetEnumerator();
         }
 
 

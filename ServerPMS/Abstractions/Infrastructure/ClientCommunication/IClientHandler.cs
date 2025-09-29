@@ -4,6 +4,7 @@ namespace ServerPMS.Abstractions.Infrastructure.ClientCommunication
 {
 	public interface IClientHandler
 	{
+        string ID { get; }
         Task HandleClientAsync(CArray client);
     }
 }

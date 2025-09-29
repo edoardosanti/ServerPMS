@@ -36,6 +36,11 @@ namespace ServerPMS
         {
             return string.Format("Queue ID:{0}\t Binded Unit ID: {1}\n\nQueue:\n{3}",Id, BindedUnitID,base.ToInfo());
         }
+
+        public override string ToString()
+        {
+            return $"{Id}${BindedUnitID}${IsBinded.ToString()}${base.ToString()}";
+        }
     }
 }
 

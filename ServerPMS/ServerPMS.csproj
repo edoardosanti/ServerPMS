@@ -21,6 +21,7 @@
     <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.2" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.9" />
+    <PackageReference Include="TextCopy" Version="6.2.1" />
   </ItemGroup>
   <ItemGroup>
     <None Remove="Infrastructure\" />
@@ -46,6 +47,8 @@
     <None Remove="Abstractions\Infrastructure\ClientCommunication\" />
     <None Remove="Abstractions\Infrastructure\Concurrency\" />
     <None Remove="Infrastructure\Concurrency\" />
+    <None Remove="Abstractions\Users\" />
+    <None Remove="Users\" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Infrastructure\" />
@@ -71,5 +74,7 @@
     <Folder Include="Abstractions\Infrastructure\ClientCommunication\" />
     <Folder Include="Abstractions\Infrastructure\Concurrency\" />
     <Folder Include="Infrastructure\Concurrency\" />
+    <Folder Include="Abstractions\Users\" />
+    <Folder Include="Users\" />
   </ItemGroup>
 </Project>

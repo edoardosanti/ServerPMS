@@ -1,10 +1,11 @@
 ﻿using System;
 using ServerPMS.Infrastructure.External;
 using ServerPMS.Core;
+using ServerPMS.Infrastructure.ClientCommunication;
 
 namespace ServerPMS.Abstractions.Managers
 {
-	public interface IOrdersManager
+	public interface IOrdersManager: IEnumerable<ProductionOrder>
 	{
 
 		//properties

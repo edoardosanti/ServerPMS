@@ -17,27 +17,36 @@ namespace ServerPMS.Infrastructure.Concurrency {
     {
         private readonly ILogger<ConcurrencyManager> logger;
         private readonly IOrdersManager ordersManager;
+        private readonly IUnitsManager unitsManager;
+        private readonly IQueuesManager queuesManager;
         private readonly IGlobalConfigManager configManager;
         private readonly ISnapshotBuffer snapshotBuffer;
         private readonly IIntegratedEventsManager iem;
         private readonly IResourceMapper mapper;
 
         private HashSet<AccessToken> tokens;
+        public List<AccessToken> ActiveTokens => tokens.ToList<AccessToken>();
 
         private SemaphoreSlim IEMSemaphore;
-        private SemaphoreSlim CoreSemaphore;
+        private SemaphoreSlim OMSemaphore;
+        private SemaphoreSlim UMSemaphore;
+        private SemaphoreSlim QMSemaphore;
 
         public ConcurrencyManager(ILogger<ConcurrencyManager> logger, IGlobalConfigManager configManager, ISnapshotBuffer snapshotBuffer, IAppCore core, IResourceMapper resourceMapper)
         {
             iem = core.IEM;
             ordersManager = core.OrdersManager;
+            unitsManager = core.UnitsManger;
+            queuesManager = core.QueuesManager;
             this.logger = logger;
             this.configManager = configManager;
             this.snapshotBuffer = snapshotBuffer;
             mapper = resourceMapper;
             tokens = new HashSet<AccessToken>();
             IEMSemaphore = new SemaphoreSlim(1);
-            CoreSemaphore = new SemaphoreSlim(1);
+            OMSemaphore = new SemaphoreSlim(1);
+            UMSemaphore = new SemaphoreSlim(1);
+            QMSemaphore = new SemaphoreSlim(1);
 
         }
 
@@ -48,11 +57,16 @@ namespace ServerPMS.Infrastructure.Concurrency {
 
         public async Task<AccessToken> AccessIEMAsync(ClientHandler handler)
         {
+            return await AccessIEMAsync(handler.ID);
+        }
+
+        public async Task<AccessToken> AccessIEMAsync(string handlerID)
+        {
             //wait for iem
             await IEMSemaphore.WaitAsync();
 
             //prepare token
-            AccessToken at = new AccessToken(handler.ID, AccessMode.ReadWrite, iem);
+            AccessToken at = new AccessToken(handlerID, AccessMode.ReadWrite, "IEM", iem);
             tokens.Add(at);
 
             return at;
@@ -60,11 +74,50 @@ namespace ServerPMS.Infrastructure.Concurrency {
 
         public async Task<AccessToken> AccessOrdersManagerAsync(ClientHandler handler)
         {
+            return await AccessOrdersManagerAsync(handler.ID);
+        }
+
+        public async Task<AccessToken> AccessOrdersManagerAsync(string handlerID)
+        {
             //wait for iem
-            await CoreSemaphore.WaitAsync();
+            await OMSemaphore.WaitAsync();
 
             //prepare token
-            AccessToken at = new AccessToken(handler.ID, AccessMode.ReadWrite, ordersManager);
+            AccessToken at = new AccessToken(handlerID, AccessMode.ReadWrite, "OM", ordersManager);
+            tokens.Add(at);
+
+            return at;
+        }
+
+        public async Task<AccessToken> AccessUnitsManagerAsync(ClientHandler handler)
+        {
+            return await AccessUnitsManagerAsync(handler.ID);
+        }
+
+        public async Task<AccessToken> AccessUnitsManagerAsync(string handlerID)
+        {
+            //wait for iem
+            await UMSemaphore.WaitAsync();
+
+            //prepare token
+            AccessToken at = new AccessToken(handlerID, AccessMode.ReadWrite, "UM", unitsManager);
+            tokens.Add(at);
+
+            return at;
+        }
+
+        public async Task<AccessToken> AccessQueuesManagerAsync(ClientHandler handler)
+        {
+            return await AccessQueuesManagerAsync(handler.ID);
+        }
+
+        public async Task<AccessToken> AccessQueuesManagerAsync(string handlerID)
+        {
+            //wait for iem
+            await QMSemaphore.WaitAsync();
+
+            //prepare token
+            AccessToken at = new AccessToken(handlerID, AccessMode.ReadWrite, "QM", queuesManager);
             tokens.Add(at);
 
             return at;
@@ -94,7 +147,7 @@ namespace ServerPMS.Infrastructure.Concurrency {
                 if (IsSnapshotReferenced(snap))
                 {
                     // Resource is locked -> return read-only snapshot
-                    token = new AccessToken(handler.ID, AccessMode.ReadOnly, snap);
+                    token = new AccessToken(handler.ID, AccessMode.ReadOnly, uniqueID, snap);
                 }
                 else
                 {
@@ -104,7 +157,7 @@ namespace ServerPMS.Infrastructure.Concurrency {
                     LockResource(uniqueID, liveResource);
 
                     // Pass-through -> return pointer to live resource
-                    token = new AccessToken(handler.ID, AccessMode.ReadWrite, liveResource); //probabile eccezzione non gestita (QUASI CERTA) 
+                    token = new AccessToken(handler.ID, AccessMode.ReadWrite, uniqueID, liveResource); //probabile eccezzione non gestita (QUASI CERTA) 
                 }
 
                 tokens.Add(token);
@@ -123,8 +176,11 @@ namespace ServerPMS.Infrastructure.Concurrency {
             if (!tokens.Contains(token))
                 throw new InvalidOperationException("Unrecognizable Token.");
             tokens.Remove(token);
-            if (token.Resource == iem)
+            snapshotBuffer.ClearSnapshots(token.ResourceID);
+            if (token.ResourceID == "IEM")
                 IEMSemaphore.Release();
+            if (token.ResourceID == "OM")
+                OMSemaphore.Release();
         }
 
 

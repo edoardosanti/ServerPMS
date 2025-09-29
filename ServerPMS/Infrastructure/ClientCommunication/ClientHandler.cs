@@ -5,6 +5,7 @@ using System.Net.Security;
 using System.Security.Authentication;
 using ServerPMS.Abstractions.Infrastructure.ClientCommunication;
 using Microsoft.Extensions.DependencyInjection;
+using System.Diagnostics;
 
 //TODO: add logging on the whole class (if possible add loggers with filters) 
 
@@ -31,11 +32,13 @@ namespace ServerPMS.Infrastructure.ClientCommunication
         private readonly X509Certificate2 certificate;
         private readonly IMessageFactory msgFactory;
         private readonly IServiceScope scope;
+        private readonly IFeedManager feedManager;
 
         private IConnectionHandler RequestChHandler;
         private IConnectionHandler FeedChHandler;
         private IConnectionHandler SystemChHandler;
-        public readonly string ID;
+        private readonly string _id;
+        public string ID => _id;
 
         private NetworkStream reqNetStream;
         private NetworkStream feedNetStream;
@@ -51,16 +54,23 @@ namespace ServerPMS.Infrastructure.ClientCommunication
 
         private List<IConnectionHandler> cHandlers = new();
 
-        public ClientHandler(ILogger<ClientHandler> logger, X509Certificate2 certificate, ICommandRouter router, IMessageFactory msgFactory, IServiceScope scope)
+        private readonly Stopwatch _uptime;
+
+        public TimeSpan ConnectedFor => _uptime.Elapsed;
+
+        public ClientHandler(ILogger<ClientHandler> logger, X509Certificate2 certificate, ICommandRouter router, IMessageFactory msgFactory,IFeedManager feedManager, IServiceScope scope)
         {
-            ID = Register(this);
+            _id = Register(this);
             logger.LogInformation("New client registered {0}", ID);
             this.logger = logger;
             this.router = router;
             this.msgFactory = msgFactory;
             this.certificate = certificate;
+            this.feedManager = feedManager;
             this.scope = scope;
-           
+
+            _uptime = Stopwatch.StartNew();
+
             RequestChHandler = scope.ServiceProvider.GetRequiredService<IConnectionHandler>();
             RequestChHandler.NewMessageHandler += (o, e) => _ = OnNewMessageAsync(o as ConnectionHandler, e);
             cHandlers.Add(RequestChHandler);
@@ -124,11 +134,9 @@ namespace ServerPMS.Infrastructure.ClientCommunication
                 );
 
                 // errore genera qui
-                Task.WaitAll(reqAuth, feedAuth, sysAuth);
+                await Task.WhenAll(reqAuth, feedAuth, sysAuth);
 
                 logger.LogInformation("[{0}] SSL Authentication..", ID);
-
-
 
                 #endregion
 
@@ -136,10 +144,13 @@ namespace ServerPMS.Infrastructure.ClientCommunication
                 logger.LogInformation($"[{ID}] Secure connection on requests channel established.");
                 
                 feedConnTask = FeedChHandler.AttachConnection(feedSslStream, ConnRole.FeedChannel,7000,true);
-                logger.LogInformation("[{0}] Secure connection on feed channel established.", ID);
+                _ = feedManager.AddChannelAsync(this, FeedChHandler);
+                logger.LogInformation($"[{ID}] Secure connection on feed channel established.");
 
                 systemConnTask = SystemChHandler.AttachConnection(sysSslStream, ConnRole.SysChannel,7000,true);
-                logger.LogInformation("[{0}] Secure connection on Backup Channel established.", ID);
+                logger.LogInformation($"[{ID}] Secure connection on Backup Channel established.");
+
+
 
 
                 //TODO: Implement connection health monitor (v2)
@@ -155,7 +166,7 @@ namespace ServerPMS.Infrastructure.ClientCommunication
 
             finally
             {
-                logger.LogInformation($"[{ID}] Client Disconnected.");
+                logger.LogInformation($"[{ID}] Client Disconnected. ({ConnectedFor})");
                 Dispose();
             }
         }
